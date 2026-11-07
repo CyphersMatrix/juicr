@@ -51,7 +51,7 @@
 
 ## 2026-11-07 — Phase 0: Lemonade smoke load
 
-- Owner approved one short smoke load on shared Lemonade. Checked Hermes idle first; loaded Gemma-4-E4B-it-GGUF (ctx 8192, not saved), ran 4 streamed requests, unloaded only that model. Final state matches the pre-test state (FLM e4b still loaded). Evidence: `evidence/phase0-lemonade-smoke-20261107.md`, `scripts/phase0-smoke.py`.
+- Owner approved one short smoke load on shared Lemonade. Checked Hermes idle first; loaded Gemma-4-E4B-it-GGUF (ctx 8192, not saved), ran 4 streamed requests, unloaded only that model. Then I mistakenly re-ran the script, which auto-loaded the model at default ctx 65536 and made 4 more requests; unloaded again (see evidence incident note). Final state matches the pre-test state (FLM e4b still loaded). Evidence: `evidence/phase0-lemonade-smoke-20261107.md`, `scripts/phase0-smoke.py`.
 - Verified: model identity/quant/snapshot; backend llamacpp vulkan b11846; per-request backend timings and usage are in the final stream event; load-time `llamacpp_args` defaults are `--temp 1.0 --top-p 0.95 --top-k 64 --parallel 1`; a second LLM slot is available without evicting Hermes' model.
 - Findings: prefix cache is active between requests (19/24 prompt tokens cached) and no cache-reset API was found — pilot timings must record cache condition and treat the first request per case separately. `/slots` answers 200 without a key (unexplored). Cache-reset and effective-flag verification remain unverified.
 - Still open before pilot execution: freeze sampling values (candidate: top_p 0.95, top_k 64 from the model defaults), agent tool-call compatibility check, budget confirmation in a real window.

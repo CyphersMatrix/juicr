@@ -7,4 +7,7 @@ Pre-state: only `gemma4-it-e4b-FLM` loaded (NPU, ctx 131072), idle (0 active req
 - **Prefix cache is active:** first request cached_tokens 0, later requests 19 of 24 cached. Cache condition must be recorded; no verified cache-reset API found (probed unauthenticated paths /api/v1/{slots,props,cache} -> 401). `/slots` (no /api/v1 prefix) answered 200 without a key — unexplored, noted as a possible unauthenticated llama.cpp passthrough; not queried further.
 - Temp 0.0 gave identical text across seeds 17/43 (as the plan predicted). Temp 0.7 varied by seed.
 - POST /api/v1/unload {Gemma-4-E4B-it-GGUF}: success. Post-state: only gemma4-it-e4b-FLM loaded, recipe_options unchanged (ctx 131072). Matches pre-state.
-- Requests used: 4 inference requests (budget notional; no formal window was open).
+- Requests used: 8 inference requests (4 planned + 4 from an accidental re-run of the script after unload, see below). Not within a formal budget window.
+
+## Incident: accidental re-run after unload
+Re-running the smoke script after the unload made Lemonade auto-load Gemma-4-E4B-it-GGUF at its default ctx 65536 (not the 8192 test setting) and serve 4 more requests. Detected on the next health check, unloaded again; final state again FLM e4b only. Lesson for the runner: requests to an unloaded model silently load it with default options — the runner must verify load state/options before every dispatch and must never send a request without confirming the configuration. Nothing persisted (recipe_options `{}`).
