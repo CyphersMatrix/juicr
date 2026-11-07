@@ -38,7 +38,8 @@ These are **reported observations**, not independently verified during creation 
 13. Display quality, speed, memory and reliability separately. No default overall score.
 14. **Stack (decided 2026-11-07):** Python with FastAPI and SQLite for the controller/runner; rootless Podman for nested sandboxes inside the LXC (Phase 0 still must prove isolation); server-rendered UI with htmx for testing, and generated static HTML/JSON for published read-only reports.
 15. **Pilot defaults (decided 2026-11-07):** finite grace of 10 minutes; two bounded restoration attempts before warn-and-continue.
-16. The concrete pilot pack and execution limits below are **proposals to review before execution**, not newly approved user decisions.
+16. **Pilot window and ceiling (decided 2026-11-07):** 60-minute window; 150 total inference-request ceiling (48 measured plus warmups, probes, retries). Per-response and per-agent caps in section 7 stand. Smoke measurements may still revise these before execution.
+17. The concrete pilot pack and execution limits below are **proposals to review before execution**, not newly approved user decisions.
 
 ## 4. Architecture and access boundaries
 
