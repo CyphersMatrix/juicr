@@ -151,3 +151,5 @@
 - Pilot-1: all 12 D1/W1 trials reviewed via the blind review page (reviewer "owner", rubric pilot-rubric-1, no notes). D1 citation support: 2/2 in 6 of 6 (including s101 t0.7 where the automatic explanation check failed, so that check is stricter than the human judgment). W1 audience/clarity and tone: 2/2 in 5 of 6; 0/0 for the one trial with no visible output (tokens spent on reasoning, hit the 1,024 cap) — that 0 reflects the cap, not writing quality.
 - Pilot-2: 6 W1 trials still unreviewed (shown as pending, not zero).
 - Reading: one reviewer, near-ceiling ratings, so the human dimensions do not separate temperatures; the automatic word-count misses (98/98/87 words) did not reduce human clarity or tone ratings.
+
+- Pilot-2 W1 reviews completed by the owner: all 6 rated 2/2 for audience/clarity and tone, including the two that omit the start date (so human clarity/tone ratings do not capture fact omission; the automatic factual check does) and the three under 100 words. No trials remain pending human review in either experiment; the pilot's evidence is complete. Still unpublished; no external judging.
