@@ -62,3 +62,8 @@
 - Verification: 16 tests pass. Mutation checks: removing the budget check fails 4 tests, weakening the owner-forgery check fails 2; code restored and all 16 pass again. Concurrent admission test (40 threads, limit 10) dispatched exactly 10.
 - Limits: the in-process `Principal` token stops accidental or naive forgery only; the real boundary (separate processes, authenticated API for UI/MCP, owner session) is not built. No FastAPI layer, queue scheduler loop, wall-clock `seconds` accounting, restart reconciliation of open reservations, or per-dimension in-flight overrun handling yet. Running experiment states beyond queued/running/cancelling are not transitioned (completed/partial not implemented).
 - Phase 1 acceptance is partly met: the fake-backend checks above pass; the API/auth boundary is not yet exercised. Next: FastAPI layer in a venv with owner session, a scheduler loop, restart reconciliation, then Phase 2 runner.
+
+## 2026-11-07 — Staged in LXC 641
+
+- Owner chose to build/test in the LXC (no sudo on labyrispace). Installed python3-venv and python3-pip inside CT 641 only; created `/home/juicr/venv` and pinned deps (`requirements.lock`, 19 packages: fastapi 0.115.6, uvicorn 0.34.0, httpx, jinja2, python-multipart, itsdangerous). Repo copied (no .git) to `/home/juicr/app`.
+- Verified: all 23 unit tests pass inside the CT under the unprivileged `juicr` user. No web service started; nothing listening. Dev stays in the labyrispace checkout; sync is a tarball push via `pct push` (no git on the CT).
