@@ -1,0 +1,67 @@
+== T1 identity / capabilities
+CapEff:	0000000000000000
+NoNewPrivs:	1
+         0       1000          1
+         1      10000      50000
+PASS caps-dropped :: 
+PASS no-new-privs :: 
+== T2 filesystem
+touch: cannot touch '/x': Read-only file system
+nohome
+PASS rootfs-readonly :: 
+PASS host-home-hidden :: 
+== T3 sockets / mgmt
+/etc/dpkg/dpkg.cfg.d/docker-apt-speedup
+/etc/apt/apt.conf.d/docker-no-languages
+/etc/apt/apt.conf.d/docker-autoremove-suggests
+/etc/apt/apt.conf.d/docker-gzip-indexes
+/etc/apt/apt.conf.d/docker-clean
+lock
+FAIL mgmt-socket-absent :: 
+== T4 cross-task contamination
+cat: /tmp/a: No such file or directory
+ls: cannot access '/ws': No such file or directory
+PASS fresh-task-clean :: 
+PASS volume-persists-only-if-declared :: 
+== T5 network none
+    lo
+v6=0
+dns=2
+bash: connect: Network is unreachable
+bash: line 1: /dev/tcp/10.138.6.1/13305: Network is unreachable
+lem=1
+bash: connect: Network is unreachable
+bash: line 1: /dev/tcp/10.138.6.41/22: Network is unreachable
+self=1
+bash: connect: Network is unreachable
+bash: line 1: /dev/tcp/1.1.1.1/53: Network is unreachable
+inet=1
+PASS only-loopback :: 
+PASS no-ipv6-interfaces :: 
+PASS dns-blocked :: 
+PASS lem-blocked :: 
+PASS self-blocked :: 
+PASS inet-blocked :: 
+== T6 resource ceilings
+mem: []
+PASS memory-ceiling :: killed
+pids: [bash: fork: retry: Resource temporarily unavailable
+bash: fork: retry: Resource temporarily unavailable]
+PASS pids-ceiling :: fork refused
+disk: [dd: error writing '/w/f': No space left on device
+9+0 records in
+8+0 records out
+8388608 bytes (8.4 MB, 8.0 MiB) copied, 0.00350164 s, 2.4 GB/s
+8192	/w/f]
+PASS disk-ceiling :: ENOSPC
+cpu capped(0.25)=4.450909922s uncapped=.780123384s
+== T7 timeout / orphan cleanup
+FAIL stop-cleans-container :: 
+PASS timeout-kills-task :: 
+after conmon kill: containers=1 sleep=0
+after rm -f -a: containers=0 sleep=0
+PASS orphan-recovery :: 
+
+## Confirmation rerun (same day)
+T3 narrowed: find -name "*.sock" in sandbox = 0; /run and /var/run contain only `lock`. (First-run FAIL was a grep false positive on docker apt config files in the Debian image.)
+T7 narrowed: with 0 pre-existing containers, `podman stop` leaves 0 containers and 0 sleep processes. (First-run FAIL was a stale record from the prior run's simulated crash.)
