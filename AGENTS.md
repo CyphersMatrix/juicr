@@ -12,7 +12,7 @@ Own the local Lemonade benchmark platform's planning and future implementation.
 
 ## Local Contracts
 
-- Current authorization is documentation only. No deployment, host changes, inference or application implementation without a subsequent instruction.
+- Authorization (2026-11-07): documentation, Phase 0 (LXC 641 and its isolation battery, one Lemonade smoke load) and Phase 1 controller code against a fake backend. Further host changes, real inference beyond approved windows, GitHub publication and later phases need a subsequent instruction.
 - Preserve confirmed decisions in plan section 3. Budget exhaustion cancels active work where supported; grace never expands budget.
 - Restoration failure warns and continues queued experiments; verify each following experiment's required configuration.
 - Initial host evidence is API-only; missing metrics and uncertain settings remain explicit.
@@ -28,6 +28,7 @@ Own the local Lemonade benchmark platform's planning and future implementation.
 
 ## Verification
 
+- Code: `python3 -m unittest discover -s tests -v` (stdlib only; fake backend, no network or Lemonade).
 - Documentation: check policy consistency, pilot trial/request arithmetic, references and Markdown structure.
 - Add executable verification procedures when implementation is authorized.
 
