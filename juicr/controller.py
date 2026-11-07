@@ -103,6 +103,11 @@ class Controller:
             raise PolicyError("owner authentication failed")
         return Principal("owner", "owner", self._token)
 
+    def issue_owner_principal(self):
+        """For the web layer only, after it has verified an owner session. Library callers
+        should use authenticate_owner(token)."""
+        return Principal("owner", "owner", self._token)
+
     def _require_owner(self, p):
         if not isinstance(p, Principal) or p.role != "owner" or p._issued_by is not self._token:
             raise PolicyError("owner authorization required")

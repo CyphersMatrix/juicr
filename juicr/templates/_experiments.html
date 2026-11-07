@@ -1,0 +1,28 @@
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+{% if not exps %}<p class="muted">No experiments yet.</p>{% endif %}
+{% for e in exps %}
+<article class="card" id="exp-{{ e.id }}">
+<h3>{{ e.id }} <span class="pill {{ e.state }}">{{ e.state }}</span></h3>
+<p class="muted">creator {{ e.creator }}{% if e.window_end %} · window ends {{ e.window_end|int }}{% endif %}
+{% if e.grace_s is none and e.window_end %} · grace unlimited{% elif e.grace_s is not none %} · grace {{ (e.grace_s/60)|round(1) }} min{% endif %}</p>
+{% if e.budgets %}<table><thead><tr><th>Budget</th><th>Limit</th><th>Used</th><th>Reserved</th><th>Overrun</th><th></th></tr></thead><tbody>
+{% for d, b in e.budgets.items() %}<tr><td>{{ d }}</td><td>{{ b.lim|round(1) }}</td><td>{{ b.used|round(1) }}{% if b.unknown %} <abbr title="some usage unknown">?</abbr>{% endif %}</td><td>{{ b.reserved|round(1) }}</td><td>{{ b.overrun|round(1) if b.overrun else "–" }}</td>
+<td><progress max="{{ b.lim }}" value="{{ b.used + b.reserved }}"></progress></td></tr>{% endfor %}</tbody></table>{% endif %}
+{% if e.trials %}<p>Trials: {% for s, n in e.trials.items() %}<span class="pill">{{ s }} {{ n }}</span> {% endfor %}</p>{% endif %}
+<p class="muted">Owner grants: {{ e.approvals|join(", ") or "none" }}</p>
+{% if e.state == "awaiting_approval" %}
+<form hx-post="/experiments/{{ e.id }}/approve" hx-target="#exps" class="grid">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<label>Window (min)<input type="number" name="window_min" value="60" min="1" step="any" required></label>
+<label>Grace (min or "unlimited")<input name="grace" value="10" pattern="unlimited|[0-9.]+"></label>
+<label>Requests<input type="number" name="requests" value="150" min="0" step="any"></label>
+<label>Tokens<input type="number" name="tokens" value="0" min="0" step="any"></label>
+<label>Seconds<input type="number" name="seconds" value="3600" min="0" step="any"></label>
+<button>Approve window &amp; budget</button></form>
+{% else %}
+<div class="row">
+{% for k in grants if k != "budget_increase" %}{% if k not in e.approvals %}
+<form hx-post="/experiments/{{ e.id }}/grant" hx-target="#exps" hx-confirm="Grant {{ k }} for {{ e.id }}?"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ k }}"><button class="ghost">Grant {{ k }}</button></form>{% endif %}{% endfor %}
+{% if e.state in ["queued","running"] %}<form hx-post="/experiments/{{ e.id }}/cancel" hx-target="#exps" hx-confirm="Cancel {{ e.id }}?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Cancel</button></form>{% endif %}
+</div>{% endif %}
+</article>{% endfor %}

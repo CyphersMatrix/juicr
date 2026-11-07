@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}
+<main hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
+<header><h1>JUICR</h1>
+<form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost">Sign out</button></form></header>
+<section><h2>New experiment</h2>
+<form hx-post="/experiments" hx-target="#exps" hx-swap="innerHTML" class="row">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<label>Id<input name="exp_id" pattern="[A-Za-z0-9_\-]+" maxlength="40" required></label><button>Create</button></form></section>
+<section id="exps" hx-get="/experiments" hx-trigger="every 4s" hx-swap="innerHTML">{% include "_experiments.html" %}</section>
+</main>{% endblock %}
