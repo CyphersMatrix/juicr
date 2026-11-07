@@ -39,7 +39,8 @@ These are **reported observations**, not independently verified during creation 
 14. **Stack (decided 2026-11-07):** Python with FastAPI and SQLite for the controller/runner; rootless Podman for nested sandboxes inside the LXC (Phase 0 still must prove isolation); server-rendered UI with htmx for testing, and generated static HTML/JSON for published read-only reports.
 15. **Pilot defaults (decided 2026-11-07):** finite grace of 10 minutes; two bounded restoration attempts before warn-and-continue.
 16. **Pilot window and ceiling (decided 2026-11-07):** 60-minute window; 150 total inference-request ceiling (48 measured plus warmups, probes, retries). Per-response and per-agent caps in section 7 stand. Smoke measurements may still revise these before execution.
-17. The concrete pilot pack and execution limits below are **proposals to review before execution**, not newly approved user decisions.
+17. **Pilot pack approved as-is (2026-11-07):** fixtures C1/D1/W1/E1/A1, sampling (top_p 0.95, top_k 64; temperature 0.0/0.7; seeds 17/43/101), limits, order seed and the A1 admission rule, as in `PILOT_REVIEW.md`. This does NOT approve running the pilot, publication or external judging; those stay separate owner approvals, and A1 remains blocked until tool-call compatibility is verified.
+18. The concrete pilot pack and execution limits below are **proposals; item 17 records the owner's approval of the pack as written.
 
 ## 4. Architecture and access boundaries
 

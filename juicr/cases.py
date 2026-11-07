@@ -1,7 +1,7 @@
 """Pilot case pack (plan section 7). Synthetic only. Version-pinned; all text frozen here.
-Status: PROPOSED until the owner reviews fixtures, sampling values and limits (plan section 12, Phase 3)."""
+Status: owner approved fixtures, sampling values and limits as-is on 2026-11-07 (PILOT_REVIEW.md). Approval to RUN and to PUBLISH are separate and still pending."""
 PACK_VERSION = "pilot-1"
-PACK_STATUS = "proposed-pending-owner-review"
+PACK_STATUS = "approved-fixtures-limits-20261107; run-approval-pending; A1-blocked"
 
 # Sampling: top_p/top_k are the model's own load-time defaults observed on 2026-11-07 (not invented);
 # temperature is the experimental condition; seeds are the paired seeds from the plan.

@@ -198,8 +198,10 @@ class TestPilotPack(unittest.TestCase):
             if t["spec"]["kind"] == "single":
                 self.assertEqual(b["max_tokens"], 1024); self.assertEqual(t["spec"]["deadline_s"], 180)
 
-    def test_pack_is_marked_proposed_until_owner_review(self):
-        self.assertEqual(cases.PACK_STATUS, "proposed-pending-owner-review")
+    def test_pack_status_records_approval_scope(self):
+        self.assertIn("approved-fixtures-limits", cases.PACK_STATUS)
+        self.assertIn("run-approval-pending", cases.PACK_STATUS)       # approving the pack is not approving a run
+        self.assertIn("A1-blocked", cases.PACK_STATUS)
 
 
 class TestReviewAndClassification(unittest.TestCase):
