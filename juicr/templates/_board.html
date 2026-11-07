@@ -1,0 +1,23 @@
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<section class="stats">
+<div class="stat"><span>Experiments</span><b>{{ stats.total }}</b></div>
+<div class="stat {{ 'hot' if stats.pending }}"><span>Awaiting approval</span><b>{{ stats.pending }}</b></div>
+<div class="stat {{ 'live' if stats.active }}"><span>Active</span><b>{{ stats.active }}</b></div>
+<div class="stat"><span>Finished</span><b>{{ stats.finished }}</b></div>
+</section>
+{% if pending %}
+<h2 class="sec">Awaiting your approval</h2>
+{% for e in pending %}
+<article class="card pend" id="exp-{{ e.id }}">
+<div class="card-h"><div><h3>{{ e.id }}</h3><p class="meta">Created by {{ e.creator }}. Nothing runs until you open a window and approve a budget.</p></div><span class="badge awaiting_approval">awaiting approval</span></div>
+<form hx-post="/experiments/{{ e.id }}/approve" hx-target="#board" hx-swap="innerHTML" class="fgrid">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<label class="field"><span>Window (min)</span><input type="number" name="window_min" value="60" min="1" step="any" required></label>
+<label class="field"><span>Grace (min, or "unlimited")</span><input name="grace" value="10" pattern="unlimited|[0-9.]+"></label>
+<label class="field"><span>Requests</span><input type="number" name="requests" value="150" min="0" step="any"></label>
+<label class="field"><span>Tokens</span><input type="number" name="tokens" value="0" min="0" step="any"></label>
+<label class="field"><span>Seconds</span><input type="number" name="seconds" value="3600" min="0" step="any"></label>
+<button class="btn primary">Approve window &amp; budget</button></form>
+</article>{% endfor %}{% endif %}
+<h2 class="sec">Runs</h2>
+<div id="live" hx-get="/experiments/live" hx-trigger="every 4s" hx-swap="innerHTML">{% include "_live.html" %}</div>

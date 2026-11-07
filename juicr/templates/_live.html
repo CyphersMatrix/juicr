@@ -1,0 +1,23 @@
+{% if not live %}
+<div class="empty"><svg viewBox="0 0 48 48"><path d="M18 6h12M20 6v14L9 38a4 4 0 0 0 3.500 6h23a4 4 0 0 0 3.500-6L28 20V6"/><path d="M14 32h20"/></svg>
+<h3>No runs yet</h3><p>Create an experiment, then approve a window and budget to queue it.</p></div>
+{% endif %}
+{% for e in live %}
+<article class="card" id="exp-{{ e.id }}">
+<div class="card-h"><div><h3>{{ e.id }}</h3>
+<p class="meta">{{ e.creator }}
+{% if e.remaining_min is not none %}<span class="dot"></span>{% if e.window_open %}window closes in {{ e.remaining_min|round|int }} min{% else %}window closed{% endif %}{% endif %}
+{% if e.window_end %}<span class="dot"></span>{% if e.grace_s is none %}unlimited grace{% else %}{{ (e.grace_s/60)|round|int }} min grace{% endif %}{% endif %}</p></div>
+<span class="badge {{ e.state }}">{{ e.state }}</span></div>
+{% if e.budgets %}<div class="budgets">
+{% for d, b in e.budgets.items() %}<div class="bud"><div class="bud-t"><span>{{ d }}</span><span><b>{{ b.used|round(1)|string|replace('.0','') }}</b> / {{ b.lim|round(1)|string|replace('.0','') }}{% if b.unknown %} <abbr title="Some usage was unknown, not counted as zero">?</abbr>{% endif %}{% if b.over %} <em class="over">over by {{ b.overrun|round(1)|string|replace('.0','') }}</em>{% endif %}</span></div>
+<svg class="bar" width="100%" height="8" role="img" aria-label="{{ d }} {{ b.pct_used }} percent used"><rect width="100%" height="8" rx="4" class="bar-bg"/><rect width="{{ b.pct_used }}%" height="8" rx="4" class="bar-used {{ 'over' if b.over }}"/>{% if b.pct_res %}<rect x="{{ b.pct_used }}%" width="{{ b.pct_res }}%" height="8" class="bar-res"/>{% endif %}</svg></div>{% endfor %}</div>{% endif %}
+{% if e.trial_total %}<div class="trials"><div class="trials-t"><span>Trials</span><span>{{ e.trial_total }}</span></div>
+<svg class="bar" width="100%" height="8" role="img" aria-label="trial states"><rect width="100%" height="8" rx="4" class="bar-bg"/>{% for sg in e.segments %}<rect x="{{ sg.x }}%" width="{{ sg.w }}%" height="8" class="seg {{ sg.state }}"/>{% endfor %}</svg>
+<p class="legend">{% for sg in e.segments %}<span><i class="seg {{ sg.state }}"></i>{{ sg.state }} {{ sg.n }}</span>{% endfor %}</p></div>{% endif %}
+<div class="card-f"><span class="grants">Owner grants:
+{% for g in e.approvals if g != 'run' %}<span class="chip ok">{{ g|replace('_',' ') }}</span>{% else %}<span class="muted">none beyond run</span>{% endfor %}</span>
+<span class="acts">
+{% for k in grants if k not in e.approvals %}<form hx-post="/experiments/{{ e.id }}/grant" hx-target="#board" hx-swap="innerHTML" hx-confirm="Grant {{ k|replace('_',' ') }} for {{ e.id }}?"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ k }}"><button class="btn ghost sm">Grant {{ k|replace('_',' ') }}</button></form>{% endfor %}
+{% if e.state in ["queued","running"] %}<form hx-post="/experiments/{{ e.id }}/cancel" hx-target="#board" hx-swap="innerHTML" hx-confirm="Cancel {{ e.id }}? Active work will be stopped."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger sm">Cancel</button></form>{% endif %}</span></div>
+</article>{% endfor %}

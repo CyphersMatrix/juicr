@@ -1,5 +1,10 @@
-{% extends "base.html" %}{% block body %}
-<main class="narrow"><h1>JUICR</h1><p class="muted">Local Lemonade benchmark platform</p>
-{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
-<form method="post" action="/login"><label>Owner token<input type="password" name="token" autocomplete="current-password" required autofocus></label>
-<button>Sign in</button></form></main>{% endblock %}
+{% extends "base.html" %}{% block bodyclass %}login{% endblock %}{% block body %}
+<main class="login-card">
+{% include "_mark.html" %}
+<h1>JUICR</h1><p class="sub">Local Lemonade benchmark platform</p>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/login">
+<label class="field"><span>Owner token</span><input type="password" name="token" autocomplete="current-password" required autofocus placeholder="Paste your owner token"></label>
+<button class="btn primary wide">Sign in</button></form>
+<p class="foot">Private network only</p>
+</main>{% endblock %}

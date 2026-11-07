@@ -219,6 +219,20 @@ class TestLifecycle(Base):
         self.assertEqual(self.c.state("e1"), "cancelled")
         self.assertEqual(self.c.budget("e1")["requests"]["unknown"], 1)
 
+    def test_cancel_with_nothing_running_reaches_cancelled(self):
+        self.new_exp()
+        self.c.admit(self.mcp, "e1", "a", {"requests": 1})
+        self.c.cancel(self.user, "e1")
+        self.assertEqual(self.c.trial_state("a"), "cancelled")
+        self.assertEqual(self.c.state("e1"), "cancelled")
+
+    def test_exhaustion_with_nothing_running_reaches_terminal(self):
+        self.new_exp(budgets={"requests": 1})
+        self.c.admit(self.mcp, "e1", "a", {"requests": 2})
+        with self.assertRaises(PolicyError):
+            self.c.dispatch("a")
+        self.assertEqual(self.c.state("e1"), "cancelled")
+
     def test_restart_reconciliation_marks_unknown_not_zero_and_no_resume(self):
         self.new_exp(budgets={"requests": 3})
         for t in "abc":

@@ -142,8 +142,37 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
         return resp
 
     def page_ctx(request, sess):
-        return {"exps": controller.snapshot(), "csrf": sess["c"], "dims": DIMS,
-                "grants": ("budget_increase", "publication", "external_judging")}
+        exps = controller.snapshot()
+        now = clock()
+        for e in exps:
+            we = e.get("window_end")
+            e["remaining_min"] = None if we is None else max(0.0, (we - now) / 60)
+            e["window_open"] = we is not None and now <= we
+            tot = sum(e["trials"].values())
+            e["trial_total"] = tot
+            e["segments"] = []
+            x = 0.0
+            for st in ("done", "running", "queued", "failed", "timeout", "interrupted", "cancelled"):
+                n = e["trials"].get(st, 0)
+                if n and tot:
+                    w = 100.0 * n / tot
+                    e["segments"].append({"state": st, "n": n, "x": round(x, 2), "w": round(w, 2)})
+                    x += w
+            for b in e["budgets"].values():
+                lim = b["lim"] or 1
+                b["pct_used"] = round(min(100.0, 100.0 * b["used"] / lim), 1)
+                b["pct_res"] = round(min(100.0 - b["pct_used"], 100.0 * b["reserved"] / lim), 1)
+                b["over"] = b["used"] > b["lim"]
+        stats = {
+            "total": len(exps),
+            "pending": sum(1 for e in exps if e["state"] == "awaiting_approval"),
+            "active": sum(1 for e in exps if e["state"] in ("queued", "running", "cancelling")),
+            "finished": sum(1 for e in exps if e["state"] in ("completed", "partial", "cancelled", "failed")),
+        }
+        return {"exps": exps, "pending": [e for e in exps if e["state"] == "awaiting_approval"],
+                "live": [e for e in exps if e["state"] != "awaiting_approval"], "stats": stats,
+                "csrf": sess["c"], "dims": DIMS,
+                "grants": ("publication", "external_judging")}
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
@@ -155,15 +184,20 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
     @app.get("/experiments", response_class=HTMLResponse)
     def experiments_partial(request: Request):
         p, sess = need_owner(request)
-        return templates.TemplateResponse(request, "_experiments.html", page_ctx(request, sess))
+        return templates.TemplateResponse(request, "_board.html", page_ctx(request, sess))
+
+    @app.get("/experiments/live", response_class=HTMLResponse)
+    def experiments_live(request: Request):
+        p, sess = need_owner(request)
+        return templates.TemplateResponse(request, "_live.html", page_ctx(request, sess))
 
     def rerender(request, sess):
-        return templates.TemplateResponse(request, "_experiments.html", page_ctx(request, sess))
+        return templates.TemplateResponse(request, "_board.html", page_ctx(request, sess))
 
     def fail(request, sess, msg, code=400):
         ctx = page_ctx(request, sess)
         ctx["error"] = msg
-        return templates.TemplateResponse(request, "_experiments.html", ctx, status_code=code)
+        return templates.TemplateResponse(request, "_board.html", ctx, status_code=code)
 
     @app.post("/experiments", response_class=HTMLResponse)
     def create(request: Request, exp_id: str = Form(...), csrf: str = Form("")):

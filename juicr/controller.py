@@ -276,6 +276,7 @@ class Controller:
             if r["handle"]:
                 self.backend.cancel(r["handle"])
         self._event(c, exp_id, "exhausted", dim)
+        self._maybe_complete(c, exp_id)
 
     def settle(self, trial_id, actual):
         """Reconcile observed usage. actual[dim]=None means unknown (not zero)."""
@@ -438,6 +439,7 @@ class Controller:
                 if r["handle"]:
                     self.backend.cancel(r["handle"])
             self._event(c, exp_id, "cancel", caller.name)
+            self._maybe_complete(c, exp_id)
             c.execute("COMMIT")
         except BaseException:
             c.execute("ROLLBACK"); raise
