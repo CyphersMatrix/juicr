@@ -32,3 +32,11 @@
 - Currently loaded: `gemma4-it-e4b-FLM` (flm v1.0.7 on NPU, ctx 131072) — NOT the pilot target. Pilot target `Gemma-4-E4B-it-GGUF` (unsloth/gemma-4-E4B-it-GGUF:Q4_K_M, 5.56 GB) is downloaded; llamacpp vulkan b11846 installed (devices amd_gpu, cpu); rocm and cpu installable only.
 - Interference risk: Hermes uses the loaded e4b model on this Lemonade; loading the GGUF for runs may evict/contend with it. Needs coordination (plan decision 7). Model-storage free 79.8 GB of 654.7 GB.
 - Not yet verified: effective settings, cache reset API, sampling recommendations, per-request timing fields, tool-call behavior. Isolation proof (LXC) not started.
+
+## 2026-11-07 — Phase 0: LXC created (isolation not yet proven)
+
+- Owner approved creation (ID changed to 641). Created unprivileged LXC 641 `juicr` at 10.138.6.41 on proxispace: Debian 13, nesting+keyctl, 4 vCPU / 8 GiB / 32 GiB on `library`, onboot off, not in the nightly backup job. Undo: `pct stop 641 && pct destroy 641`.
+- Installed podman 5.4.2, uidmap, passt, python3; user `juicr`. Rootless Podman initially failed (`newuidmap` EPERM) because default subuid 100000+ exceeds the 65536-ID map of an unprivileged LXC; fixed with `juicr:10000:50000` in /etc/subuid and /etc/subgid.
+- Verified: rootless overlay/crun; a debian:13 container runs with `--network=none` and maps container root to the unprivileged `juicr` user.
+- Finding: networked rootless containers (pasta) fail — `/dev/net/tun` is not available in the LXC. Isolation default is network-disabled so this does not block the plan, but allowlisted/unrestricted network case modes would need a tun device passthrough (an LXC config change) — awaiting owner decision.
+- NOT yet done: the isolation test battery (filesystem/socket, contamination, DNS/IPv6, resource ceilings, timeout/orphan cleanup). Vault thread and State.md updated.
