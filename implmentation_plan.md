@@ -36,7 +36,9 @@ These are **reported observations**, not independently verified during creation 
 11. Results stay private until owner-approved publication; retain bundles until manually deleted. Reports are interactive, read-only and private-network accessible.
 12. Use synthetic initial cases and human review for subjective pilot results. Local/external AI judges are optional. Local judging runs outside measured inference intervals.
 13. Display quality, speed, memory and reliability separately. No default overall score.
-14. The concrete pilot pack and execution limits below are **proposals to review before execution**, not newly approved user decisions.
+14. **Stack (decided 2026-11-07):** Python with FastAPI and SQLite for the controller/runner; rootless Podman for nested sandboxes inside the LXC (Phase 0 still must prove isolation); server-rendered UI with htmx for testing, and generated static HTML/JSON for published read-only reports.
+15. **Pilot defaults (decided 2026-11-07):** finite grace of 10 minutes; two bounded restoration attempts before warn-and-continue.
+16. The concrete pilot pack and execution limits below are **proposals to review before execution**, not newly approved user decisions.
 
 ## 4. Architecture and access boundaries
 
@@ -263,7 +265,7 @@ Agree practical thresholds and held-out cases, review execution/reviewer costs a
 
 Defer real agent tools, browser build/repair loops, rich galleries, multiple automated judges, cloud baselines, scheduled windows, host collectors, automatic promotion and overall composite rankings. Advance only when isolation, evidence quality and operating cost justify it.
 
-Before execution, settle exact frameworks/runtime, verified API paths and auth, model identity, cache controls, concrete sampling values, final resource/budget/grace limits and bounded restoration retries. Continuation after restoration failure is already decided. Establish full-suite thresholds before promotion.
+Frameworks/runtime, grace and restoration retries are now decided (section 3, items 14-15). Before execution, still settle verified API paths and auth, model identity, cache controls, concrete sampling values and final resource/budget limits. Continuation after restoration failure is already decided. Establish full-suite thresholds before promotion.
 
 Ask consequential unresolved questions one at a time with multiple-choice answers and a marked recommendation. Research technical facts through authorized inspection instead of asking the user to guess them.
 

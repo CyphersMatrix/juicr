@@ -16,3 +16,9 @@
 - Made AGENTS.md standalone: the parent `../AGENTS.md` reference now notes it lives outside this repo. Earlier devlog entries left unchanged as history.
 - Added .gitignore (secrets, local state, caches); `git init` on `main` and first commit. No GitHub remote yet; none created or pushed.
 - Documentation only; no host changes, inference or deployment.
+
+## 2026-11-07 — Stack and pilot defaults decided
+
+- Owner decisions: Python/FastAPI/SQLite; rootless Podman (isolation still unproven until Phase 0); htmx server-rendered testing UI with static published reports; 10 min finite grace and 2 restoration retries.
+- Recorded as plan section 3 items 14-15; the old "proposals" item is now 16. Section 13 trimmed to what remains open: API paths/auth, model identity, cache controls, sampling values, resource/budget limits.
+- Documentation only; no host changes, inference or deployment.
