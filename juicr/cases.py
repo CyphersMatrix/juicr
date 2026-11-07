@@ -1,7 +1,7 @@
 """Pilot case pack (plan section 7). Synthetic only. Version-pinned; all text frozen here.
 Status: owner approved fixtures, sampling values and limits as-is on 2026-11-07 (PILOT_REVIEW.md). Approval to RUN and to PUBLISH are separate and still pending."""
 PACK_VERSION = "pilot-1"
-PACK_STATUS = "approved-fixtures-limits-20261107; run-approval-pending; A1-blocked"
+PACK_STATUS = "approved-fixtures-limits-20261107; run-approval-pending; A1-admitted-compat-verified"
 
 # Sampling: top_p/top_k are the model's own load-time defaults observed on 2026-11-07 (not invented);
 # temperature is the experimental condition; seeds are the paired seeds from the plan.
@@ -71,5 +71,5 @@ CASES = {
     "W1": {"workload": "writing", "title": "audience and factual preservation", "prompt": W1_PROMPT, "kind": "single"},
     "E1": {"workload": "extraction", "title": "superseded invoice amount", "prompt": E1_PROMPT, "kind": "single"},
     "A1": {"workload": "agent", "title": "recover, read, draft", "prompt": A1_PROMPT, "kind": "agent",
-           "admission": "blocked until Gemma-4-E4B tool-call compatibility is verified on the installed build"},
+           "admission": "admitted: tool-call compatibility verified 2026-11-07 (evidence/a1-compat-20261107.json)"},
 }

@@ -129,6 +129,20 @@ class TestAgentCase(unittest.TestCase):
         self.assertTrue(all(r["checks"].values()), r["checks"]); self.assertEqual(r["critical_failures"], [])
         self.assertTrue(out["trace"][1]["result_error"])                    # first search failed transiently
 
+    def test_tool_calls_are_echoed_in_openai_wire_shape(self):
+        seen = []
+        steps = list(refs.A1_REF_STEPS)
+        it = iter(steps)
+        def step(messages, tools):
+            seen.append([dict(m) for m in messages]); return next(it)
+        agent.run_agent(step)
+        asst = [m for m in seen[1] if m["role"] == "assistant"][0]
+        tc = asst["tool_calls"][0]
+        self.assertEqual(tc["type"], "function"); self.assertEqual(set(tc["function"]), {"name", "arguments"})
+        self.assertIsInstance(tc["function"]["arguments"], str)           # server expects a JSON string
+        tool_msgs = [m for m in seen[1] if m["role"] == "tool"]
+        self.assertTrue(tool_msgs and tool_msgs[0]["tool_call_id"] == tc["id"])
+
     def test_no_recovery_is_scored_separately(self):
         steps = [refs.A1_REF_STEPS[0],
                  {"content": "Cedar launches May 2 with $40,000.", "tool_calls": [], "tokens": 10}]
@@ -165,10 +179,11 @@ class TestAgentCase(unittest.TestCase):
         t = iter([0, 0, 1000, 1000, 1000]); out = agent.run_agent(refs.scripted(refs.A1_REF_STEPS), clock=lambda: next(t))
         self.assertEqual(out["outcome"], "limit_time")
 
-    def test_a1_admission_is_blocked_until_compat_verified(self):
-        self.assertIn("blocked", cases.CASES["A1"]["admission"])
+    def test_a1_admission_cites_compat_evidence(self):
+        self.assertIn("evidence/a1-compat-20261107.json", cases.CASES["A1"]["admission"])
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(__file__), "..", "evidence", "a1-compat-20261107.json")))
         p = pilot.build_pilot("M")
-        self.assertTrue(all("blocked" in t["spec"]["admission"] for t in p["trials"] if t["case"] == "A1"))
+        self.assertTrue(all("admitted" in t["spec"]["admission"] for t in p["trials"] if t["case"] == "A1"))
 
 
 class TestPilotPack(unittest.TestCase):
@@ -201,7 +216,7 @@ class TestPilotPack(unittest.TestCase):
     def test_pack_status_records_approval_scope(self):
         self.assertIn("approved-fixtures-limits", cases.PACK_STATUS)
         self.assertIn("run-approval-pending", cases.PACK_STATUS)       # approving the pack is not approving a run
-        self.assertIn("A1-blocked", cases.PACK_STATUS)
+        self.assertIn("A1-admitted-compat-verified", cases.PACK_STATUS)
 
 
 class TestReviewAndClassification(unittest.TestCase):

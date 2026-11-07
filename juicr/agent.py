@@ -30,6 +30,13 @@ class SimTools:
         return {"error": "unknown_tool"}, True
 
 
+def to_openai_call(tc, i=0):
+    """Echo a tool call back to the server in the OpenAI wire shape (type + function{name, arguments:str})."""
+    a = tc.get("arguments")
+    return {"id": tc.get("id") or f"call_{i}", "type": "function",
+            "function": {"name": tc.get("name"), "arguments": a if isinstance(a, str) else json.dumps(a or {})}}
+
+
 def _parse_args(a):
     if isinstance(a, dict):
         return a
@@ -63,8 +70,9 @@ def run_agent(step_fn, clock=time.monotonic, limits=None, tools=None):
         tcs = msg.get("tool_calls") or []
         if not tcs:
             final, outcome = msg.get("content") or "", "finished"; break
-        messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": tcs})
-        for tc in tcs:
+        wire = [to_openai_call(tc, i) for i, tc in enumerate(tcs)]
+        messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": wire})
+        for tc, oc in zip(tcs, wire):
             if ncalls >= lim["max_tool_calls"]:
                 outcome = "limit_tool_calls"; break
             ncalls += 1
@@ -72,7 +80,7 @@ def run_agent(step_fn, clock=time.monotonic, limits=None, tools=None):
             res, is_err = tools.call(tc.get("name"), args)
             trace.append({"type": "tool_call", "name": tc.get("name"), "args": args, "raw_args": tc.get("arguments"),
                           "result": res, "result_error": is_err})
-            messages.append({"role": "tool", "tool_call_id": tc.get("id"), "content": json.dumps(res)})
+            messages.append({"role": "tool", "tool_call_id": oc["id"], "content": json.dumps(res)})
         else:
             continue
         break

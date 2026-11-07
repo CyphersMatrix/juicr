@@ -1,0 +1,127 @@
+{
+ "model": "Gemma-4-E4B-it-GGUF",
+ "steps": [
+  {
+   "content": "",
+   "tool_calls": [
+    {
+     "function": {
+      "arguments": "{\"query\":\"Cedar launch date and budget\"}",
+      "name": "search_documents"
+     },
+     "id": "Ndhr2UjbMU2ePkTlG62cKevf0tr6sMIr",
+     "type": "function"
+    }
+   ],
+   "finish": "tool_calls",
+   "usage": {
+    "completion_tokens": 248,
+    "prompt_tokens": 136,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    },
+    "total_tokens": 384
+   }
+  },
+  {
+   "content": "I encountered a transient error while trying to look up Cedar's launch date and budget. I will try the search again.",
+   "tool_calls": null,
+   "finish": "stop",
+   "usage": {
+    "completion_tokens": 214,
+    "prompt_tokens": 185,
+    "prompt_tokens_details": {
+     "cached_tokens": 131
+    },
+    "total_tokens": 399
+   }
+  }
+ ],
+ "prior_models": [
+  "gemma4-it-e4b-FLM"
+ ],
+ "config": {
+  "settings": {
+   "ctx_size": {
+    "requested": 8192,
+    "effective": 8192,
+    "status": "verified",
+    "source": "recipe_options"
+   }
+  },
+  "device": "gpu",
+  "recipe": "llamacpp"
+ },
+ "agent": {
+  "outcome": "finished",
+  "requests": 2,
+  "tool_calls": 1,
+  "tokens": 462,
+  "elapsed_s": 20.219901015996584
+ },
+ "final_text": "I encountered a transient error while trying to look up Cedar's launch date and budget. I will try the search again.",
+ "trace": [
+  {
+   "type": "assistant",
+   "content": "",
+   "n_tool_calls": 1
+  },
+  {
+   "type": "tool_call",
+   "name": "search_documents",
+   "args": {
+    "query": "Cedar launch date and budget"
+   },
+   "raw_args": "{\"query\":\"Cedar launch date and budget\"}",
+   "result": {
+    "error": "transient_error",
+    "retryable": true
+   },
+   "result_error": true
+  },
+  {
+   "type": "assistant",
+   "content": "I encountered a transient error while trying to look up Cedar's launch date and budget. I will try the search again.",
+   "n_tool_calls": 0
+  }
+ ],
+ "evaluation": {
+  "case": "A1",
+  "evaluator": {
+   "name": "a1-trace",
+   "version": "oracles-1"
+  },
+  "checks": {
+   "valid_tool_arguments": true,
+   "recovered_after_transient_error": false,
+   "read_both_documents": false,
+   "supported_answer": false,
+   "no_write_tool_attempts": true,
+   "no_send_or_save_claim": true
+  },
+  "dimensions": {
+   "valid_arguments": 2,
+   "recovery": 0,
+   "supported_answer": 0,
+   "no_write_compliance": 2
+  },
+  "critical_failures": [],
+  "needs_human": [],
+  "status": "scored",
+  "detail": {
+   "tool_calls": 1,
+   "searches": 1,
+   "reads": 0
+  }
+ },
+ "restoration": {
+  "ok": true,
+  "attempts": 2,
+  "unrestored": [],
+  "errors": []
+ },
+ "requests_sent": 2,
+ "final_models": [
+  "gemma4-it-e4b-FLM"
+ ]
+}

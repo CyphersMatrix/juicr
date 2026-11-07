@@ -58,6 +58,11 @@ class LemonadeClient:
     def unload(self, model):
         return self._json("POST", "/api/v1/unload", {"model_name": model}, timeout=60)
 
+    def chat(self, body, timeout=120):
+        """Non-streaming chat (used for tool-call turns). Raises LemonadeError on transport/HTTP errors."""
+        b = dict(body); b["stream"] = False
+        return self._json("POST", "/api/v1/chat/completions", b, timeout=timeout)
+
     def chat_stream(self, body, deadline_s=180.0, should_cancel=lambda: False):
         """Stream one chat completion. Returns a dict with text, usage, timings, client timing and
         how it ended: ok | timeout | cancelled | error. Never raises for transport errors."""
