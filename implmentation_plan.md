@@ -240,6 +240,8 @@ Implement C1/D1/W1/E1/A1, independent oracles, simulated tools, human review and
 
 **Acceptance:** reference outputs pass; intentional wrong outputs fail; task/infrastructure/timeout/missing-review classes stay distinct. Owner reviews actual pilot fixtures, sampling values and resource/request/tool/time limits before execution.
 
+**Status 2026-11-07:** implemented and tested (fixtures, oracles, sandbox, agent loop with simulated tools, blind review, pilot builder). The owner-review gate is open: see `PILOT_REVIEW.md`. A1 stays blocked until tool-call compatibility is verified on the installed build.
+
 ### Phase 4 — testing UI and MCP
 
 Expose inventory, experiments, flexible supported settings, windows/budgets, progress, cancellation and evidence. Both paths use one controller. External judging remains disabled absent per-experiment approval.

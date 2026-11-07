@@ -169,10 +169,15 @@ class TestEvidenceIntegrity(Base):
             self.ev.finalize("trial", "x", {"a": 2})
         p = os.path.join(self.ev.root, "manifests", "trial-x.json")
         self.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o400)
-        txt = open(p).read(); os.chmod(p, 0o600); open(p, "w").write(txt.replace('"a": 1', '"a": 9')); os.chmod(p, 0o400)
+        with open(p) as fh: txt = fh.read()
+        os.chmod(p, 0o600)
+        with open(p, "w") as fh: fh.write(txt.replace('"a": 1', '"a": 9'))
+        os.chmod(p, 0o400)
         with self.assertRaises(EvidenceError):
             self.ev.manifest("trial", "x")
-        os.chmod(p, 0o600); open(p, "w").write("{not json"); os.chmod(p, 0o400)
+        os.chmod(p, 0o600)
+        with open(p, "w") as fh: fh.write("{not json")
+        os.chmod(p, 0o400)
         with self.assertRaises(EvidenceError):                   # corrupt file is an evidence error too
             self.ev.manifest("trial", "x")
 
@@ -180,7 +185,8 @@ class TestEvidenceIntegrity(Base):
         h1 = self.ev.put_artifact(b"hello"); h2 = self.ev.put_artifact(b"hello")
         self.assertEqual(h1, h2)
         self.assertEqual(self.ev.get_artifact(h1), b"hello")
-        p = os.path.join(self.ev.root, "artifacts", h1); os.chmod(p, 0o600); open(p, "wb").write(b"hellx")
+        p = os.path.join(self.ev.root, "artifacts", h1); os.chmod(p, 0o600)
+        with open(p, "wb") as fh: fh.write(b"hellx")
         with self.assertRaises(EvidenceError):
             self.ev.get_artifact(h1)
 
@@ -196,7 +202,8 @@ class TestEvidenceIntegrity(Base):
         self.r.execute("t1", CFG, dict(SPEC, max_attempts=2))
         for root, _, files in os.walk(self.ev.root):
             for f in files:
-                self.assertNotIn(KEY.encode(), open(os.path.join(root, f), "rb").read(), f)
+                with open(os.path.join(root, f), "rb") as fh:
+                    self.assertNotIn(KEY.encode(), fh.read(), f)
         bad = LemonadeClient(self.fl.url, key="wrong-key", timeout=5)
         try:
             bad.health()
