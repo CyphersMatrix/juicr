@@ -352,6 +352,8 @@ class Controller:
             return
         bad = c.execute("SELECT COUNT(*) n FROM trial WHERE experiment_id=? AND state!='done'", (exp_id,)).fetchone()["n"]
         total = c.execute("SELECT COUNT(*) n FROM trial WHERE experiment_id=?", (exp_id,)).fetchone()["n"]
+        if total == 0 and st != "cancelling":
+            return          # approved but nothing admitted yet: it is waiting for its trials, not finished
         if st == "cancelling":
             new = "cancelled"
         elif total and not bad:

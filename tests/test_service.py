@@ -119,6 +119,26 @@ class TestSimEndToEnd(Base):
         self.assertIn(self.ctl.state("p1"), ("partial", "cancelled"))
 
 
+class TestRescore(Base):
+    def test_rescoring_appends_and_never_edits_history(self):
+        self.pilot(); self.run_all()
+        tid = "p1__W1-s17-t00"
+        first = self.o.es.records(tid)
+        self.assertEqual(len(first), 1)
+        real = oracles.w1_guarantee_claim
+        oracles.w1_guarantee_claim = lambda t: True                   # simulate an oracle bug at first scoring time
+        try:
+            self.o.rescore("p1")
+        finally:
+            oracles.w1_guarantee_claim = real
+        bad = self.o.es.view(tid); self.assertIn("unsupported_guarantee", bad["critical_failures"])
+        self.assertEqual(self.o.rescore("p1"), 30)                    # fixed oracle: rescore again
+        recs = self.o.es.records(tid)
+        self.assertEqual(len(recs), 3); self.assertEqual(recs[0], first[0])   # original evaluation untouched
+        self.assertEqual(self.o.es.view(tid)["critical_failures"], [])        # the effective view uses the latest
+        self.assertIsNotNone(self.ev.manifest("trial", tid))                  # evidence itself unchanged
+
+
 class TestReview(Base):
     def test_blind_review_flow(self):
         self.pilot(); self.run_all()
@@ -146,6 +166,34 @@ class TestReview(Base):
 
 class TestRealMode(Base):
     mode = "real"
+
+    def test_truncation_and_hidden_reasoning_are_recorded_as_such(self):
+        self.fl.state.truncate = True
+        self.pilot(); self.run_all(limit=150)
+        c1 = [r for r in self.o.trial_rows("p1") if r["case"] == "C1"]
+        self.assertEqual(len(c1), 6)
+        for r in c1:
+            self.assertEqual(r["class"]["task"], "task_failure")
+            self.assertIn("truncated", r["class"]["note"])
+        m = self.ev.manifest("trial", "p1__C1-s17-t00")["body"]["final"]
+        self.assertTrue(m["generation_truncated"]); self.assertEqual(m["finish_reason"], "length")
+        self.assertGreater(m["reasoning_chars"], 0)
+        self.assertIn(b"think about intervals", self.ev.get_artifact(m["reasoning"]))          # reasoning preserved as evidence
+        v = self.o.es.view("p1__C1-s17-t00")
+        self.assertIn("truncated at the token cap", v["detail"]["reason"])
+        self.assertEqual(self.o.summary(self.o.trial_rows("p1"))[2]["truncated"], 3)           # C1 rows are counted as truncated
+
+    def test_agent_that_hits_its_request_cap_is_a_task_failure_not_infrastructure(self):
+        self.fl.state.agent_never_answers = True
+        self.pilot(); self.run_all(limit=150)
+        a1 = [r for r in self.o.trial_rows("p1") if r["case"] == "A1"]
+        self.assertEqual(len(a1), 6)
+        for r in a1:
+            self.assertEqual(r["state"], "failed")
+            self.assertEqual((r["class"]["execution"], r["class"]["task"]), ("ok", "task_failure"))
+            self.assertEqual(r["class"]["note"], "limit:limit_requests")
+        s = [x for x in self.o.summary(self.o.trial_rows("p1")) if x["case"] == "A1"]
+        self.assertEqual(sum(x["infra"] for x in s), 0); self.assertEqual(sum(x["finished"] for x in s), 6)
 
     def test_pilot_against_fake_lemonade_restores_state_and_keeps_key_out_of_evidence(self):
         before = sorted(m["model_name"] for m in self.fl.state.loaded)

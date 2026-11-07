@@ -257,6 +257,8 @@ Use approved window/budget for accounted smoke measurements, then the paired pil
 
 **Acceptance:** 30 terminal trial records or explicit partial/cancelled status, attributable evidence, subjective review status and demonstrated checkpoint resume. Do not label partial runs complete or inference approval as publication approval.
 
+**Status 2026-11-07:** run 1 executed (see devlog and `evidence/pilot1-run1-results-20261107.txt`): 30 terminal trial records, 40 requests, no observed interference, restoration verified. Acceptance for "attributable evidence" and restoration is met; the pilot is exploratory and confounded by two approved limits (1,024-token cap that includes hidden reasoning; 4-request agent cap), so a pilot-2 with revised limits needs owner approval. Human review of D1/W1 is pending; results are private and nothing is published.
+
 ### Phase 6 — publication and reports
 
 Materialize owner-approved snapshots atomically; implement read-only comparisons, evidence pages and exports.

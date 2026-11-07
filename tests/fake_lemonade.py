@@ -23,11 +23,14 @@ class State:
         self.no_usage = False
         self.cached = 0
         self.unauth = 0
+        self.truncate = False        # stream hidden reasoning + an unfinished code block, finish_reason=length
+        self.agent_never_answers = False  # tool-using chat keeps asking for tools
         self.served_ctx = []         # ctx_size in effect for the target model when each chat was served
         self.drop_after_chat = False # unload the model after every chat (forces the pre-dispatch guard to matter)
 
 
 def make(state):
+    state_ref = state
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a): pass
 
@@ -57,7 +60,9 @@ def make(state):
             n = len([m for m in b.get("messages", []) if m.get("role") == "tool"])
             def tc(i, name, args):
                 return {"id": f"call{i}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}
-            if b.get("tools") and n == 0:
+            if b.get("tools") and state_ref.agent_never_answers:
+                msg = {"content": "", "tool_calls": [tc(n, "search_documents", {"query": "again"})]}
+            elif b.get("tools") and n == 0:
                 msg = {"content": "", "tool_calls": [tc(0, "search_documents", {"query": "Cedar launch"})]}
             elif b.get("tools") and n == 1:
                 msg = {"content": "", "tool_calls": [tc(1, "search_documents", {"query": "Cedar launch date"})]}
@@ -110,6 +115,11 @@ def make(state):
                     return self._json(200, out)
                 self.send_response(200); self.send_header("Content-Type", "text/event-stream"); self.end_headers()
                 def ev(o): self.wfile.write(b"data: " + json.dumps(o).encode() + b"\n\n"); self.wfile.flush()
+                if state.truncate:
+                    ev({"choices": [{"delta": {"reasoning_content": "let me think about intervals..."}}]})
+                    ev({"choices": [{"delta": {"content": "```python\ndef merge_intervals(intervals):\n    "}}]})
+                    ev({"choices": [{"delta": {}, "finish_reason": "length"}], "usage": {"completion_tokens": 1024, "prompt_tokens": 50}})
+                    self.wfile.write(b"data: [DONE]\n\n"); self.wfile.flush(); drop(); return
                 ev({"choices": [{"delta": {"content": "Rivers "}}]})
                 if state.stall:
                     threading.Event().wait(30); return

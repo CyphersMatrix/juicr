@@ -1,0 +1,66 @@
+order case temp seed state | execution task judgment | critical | total_s ttft tok/s cached
+ 1 C1 0.0  43 done   | ok task_failure complete | - | 44.88 27.17 23.08 0
+ 2 C1 0.7  43 done   | ok task_failure complete | - | 40.66 16.72 23.21 202
+ 3 W1 0.7  43 done   | ok task_failure pending_human | - | 36.45 31.28 23.26 7
+ 4 W1 0.0  43 done   | ok task_failure pending_human | - | 20.15 14.35 23.41 140
+ 5 W1 0.7  17 done   | ok task_failure pending_human | - | 44.28 - 23.17 140
+ 6 W1 0.0  17 done   | ok task_failure pending_human | - | 20.1 14.34 23.48 140
+ 7 C1 0.0  17 done   | ok task_failure complete | - | 52.0 31.0 19.88 7
+ 8 C1 0.7  17 done   | ok task_failure complete | - | 52.72 - 19.45 202
+ 9 E1 0.7  43 done   | ok task_success complete | - | 46.4 41.49 17.64 7
+10 E1 0.0  43 done   | ok task_success complete | - | 47.31 41.82 15.04 154
+11 A1 0.0 101 done   | ok task_failure complete | - | 27.3 - - -
+12 A1 0.7 101 done   | ok task_failure complete | - | 33.03 - - -
+13 E1 0.7  17 done   | ok task_success complete | - | 30.25 26.17 22.78 5
+14 E1 0.0  17 done   | ok task_success complete | - | 50.23 45.28 16.48 154
+15 E1 0.7 101 done   | ok task_success complete | - | 45.93 40.89 16.94 154
+16 E1 0.0 101 done   | ok task_success complete | - | 42.31 37.14 16.83 154
+17 D1 0.0  43 done   | ok task_success pending_human | - | 38.8 34.75 16.95 7
+18 D1 0.7  43 done   | ok task_success pending_human | - | 35.82 30.98 16.69 146
+19 D1 0.7  17 done   | ok task_success pending_human | - | 33.59 29.85 16.85 146
+20 D1 0.0  17 done   | ok task_success pending_human | - | 39.52 35.25 16.47 146
+21 W1 0.0 101 done   | ok task_success pending_human | - | 30.19 20.36 16.47 7
+22 W1 0.7 101 done   | ok task_failure pending_human | - | 46.64 37.53 16.23 140
+23 A1 0.7  43 failed | ok task_failure complete | - | 46.56 - - -
+24 A1 0.0  43 done   | ok task_failure complete | - | 27.02 - - -
+25 D1 0.7 101 done   | ok task_failure pending_human | - | 31.21 27.68 16.48 5
+26 D1 0.0 101 done   | ok task_success pending_human | - | 40.2 36.01 16.19 146
+27 C1 0.7 101 done   | ok task_failure complete | - | 74.34 43.69 13.86 7
+28 C1 0.0 101 done   | ok task_failure complete | - | 52.56 26.45 19.51 202
+29 A1 0.0  17 done   | ok task_failure complete | - | 26.67 - - -
+30 A1 0.7  17 failed | ok task_failure complete | - | 53.06 - - -
+
+{'case': 'A1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'A1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'C1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 3}
+{'case': 'C1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 2}
+{'case': 'D1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 3, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 0}
+{'case': 'D1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 2, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 0}
+{'case': 'E1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 3, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'E1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 3, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'W1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 1, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 0}
+{'case': 'W1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 1}
+
+NOT DONE: gemma-e4b-pilot-1__A1-s43-t07 failed task_limit:limit_requests [{'attempt': 1, 'request_sent': True, 'result': 'limit_requests'}] limit_requests None
+NOT DONE: gemma-e4b-pilot-1__A1-s17-t07 failed task_limit:limit_requests [{'attempt': 1, 'request_sent': True, 'result': 'limit_requests'}] limit_requests None
+C1 s43 t0.7: 19/21 passed; sandbox rc 0 | failing: ['bad_not_list', 'bool_rejected']
+--- W1: why each is not a success (words / bullets / facts)
+ W1-s17-t00: words=98 bullets=3 no_visible=False false=['words_100_140'] dims={'factual_preservation': 2, 'structure_length': 1}
+ W1-s17-t07: words=0 bullets=0 no_visible=True false=['analysts_12', 'begins_may_2', 'budget_40000', 'human_citation_check', 'three_bullets', 'title_present', 'words_100_140'] dims={'factual_preservation': 0, 'structure_length': 0}
+ W1-s43-t00: words=98 bullets=3 no_visible=False false=['words_100_140'] dims={'factual_preservation': 2, 'structure_length': 1}
+ W1-s43-t07: words=87 bullets=3 no_visible=False false=['words_100_140'] dims={'factual_preservation': 2, 'structure_length': 1}
+ W1-s101-t00: words=108 bullets=3 no_visible=False false=[] dims={'factual_preservation': 2, 'structure_length': 2}
+ W1-s101-t07: words=111 bullets=3 no_visible=False false=['begins_may_2'] dims={'factual_preservation': 1, 'structure_length': 2}
+--- D1 s101 t0.7 failing checks
+{'explanation_schedule_only_supersession': False} | fields: {'budget': '$40,000 [A, B]', 'explanation': 'Document B supersedes Document A on the schedule, moving the launch to', 'launch': 'May 2 [B]', 'owner': 'It is not provided'}
+--- reasoning share: completion tokens vs visible chars (all single-response trials)
+ C1: mean completion tokens 1010, mean visible chars 1468, hit cap(1024): 5/6
+ W1: mean completion tokens 674, mean visible chars 547, hit cap(1024): 1/6
+ E1: mean completion tokens 752, mean visible chars 163, hit cap(1024): 0/6
+ D1: mean completion tokens 603, mean visible chars 207, hit cap(1024): 0/6
+
+## Notes (added when exported)
+- Experiment gemma-e4b-pilot-1, window 60 min approved 20:05 UTC 2026-11-07 (owner, via the UI), run 20:05-20:26 UTC, 30 trials, 40 inference requests, 1213 s, 21,755 generated tokens, 12 tool calls.
+- Lemonade's request counter rose 17 -> 57 (exactly juicr's 40); FLM model never busy; pilot model ctx stayed 8192; final state = prior state (only gemma4-it-e4b-FLM). See evidence/pilot-watch-20261107T195053.jsonl.
+- The table above is after rescoring with corrected oracles (new evaluations appended; original evidence and first evaluations kept in the CT evidence store).
+- Original (pre-fix) summary for the record: W1 reported 5/6 "unsupported_guarantee" critical failures (oracle false positive on a negated phrase); C1 one trial evaluation_unavailable (sandbox blocked by service mount-namespace hardening); A1 limit-hit trials classified "unknown" execution.

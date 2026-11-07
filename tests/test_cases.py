@@ -37,6 +37,17 @@ class TestSingleResponseOracles(unittest.TestCase):
         self.assertFalse(oracles.evaluate_w1(refs.W1_WRONG["too_short"])["checks"]["words_100_140"])
         self.assertFalse(oracles.evaluate_w1(refs.W1_WRONG["missing_budget"])["checks"]["budget_40000"])
 
+    def test_w1_guarantee_heuristic_handles_negation_using_real_model_phrases(self):
+        for ok in ("No guarantee of accuracy has been provided for the system at this time.",   # real pilot output
+                   "Accuracy is not guaranteed.", "We cannot guarantee that results are error-free.",
+                   "Results may not be 100% accurate.", "It does not promise perfectly accurate answers.",
+                   "Cedar begins May 2 for 12 analysts."):
+            self.assertFalse(oracles.w1_guarantee_claim(ok), ok)
+        for bad in ("Cedar guarantees accurate answers.", "The answers are always accurate.", "Results are 100% accurate.",
+                    "Cedar is error-free, and there is no budget issue.", "Staff can rely on it; we guarantee quality."):
+            self.assertTrue(oracles.w1_guarantee_claim(bad), bad)
+        self.assertEqual(oracles.evaluate_w1(refs.W1_REF.replace("Thank you", "No guarantee of accuracy has been provided. Thank you"))["critical_failures"], [])
+
     def test_w1_rollout_heuristic_handles_negation(self):
         for ok in ("No production rollout date has been set.", "The pilot begins May 2. Any production rollout will be decided later.",
                    "Cedar begins May 2 for 12 analysts."):
@@ -254,6 +265,13 @@ class TestReviewAndClassification(unittest.TestCase):
         self.assertEqual(pk["rate"], ["audience_clarity", "tone"])
         self.assertEqual(self.es.unblind(pk["packet_id"]), "W1-s17-t07")
         self.assertEqual(self.es.blind_packet("W1-s17-t07", "W1", "text", salt="s")["packet_id"], pk["packet_id"])
+
+    def test_agent_limit_and_truncation_notes(self):
+        c = classify({"outcome": "failed", "classification": "task_limit:limit_requests"}, None)
+        self.assertEqual(c, {"execution": "ok", "task": "task_failure", "judgment": "complete", "note": "limit:limit_requests"})
+        ev = oracles.evaluate_e1(refs.E1_REF); ev["detail"]["no_visible_output"] = True
+        self.es.add_auto("n1", ev)
+        self.assertIn("no visible output", classify({"outcome": "done", "classification": "task_response"}, self.es.view("n1"))["note"])
 
     def test_failure_classes_stay_distinct(self):
         ok = {"outcome": "done", "classification": "task_response"}

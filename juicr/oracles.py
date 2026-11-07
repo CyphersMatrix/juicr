@@ -168,8 +168,23 @@ def w1_word_count(body):
     return sum(1 for t in body.split() if re.search(r"[A-Za-z0-9]", t))
 
 
-_GUARANTEE = re.compile(r"guarantee|100\s*%|error[- ]free|always (accurate|correct)|never (wrong|incorrect)|"
-                        r"perfectly accurate|completely accurate", re.I)
+_GUAR_KW = re.compile(r"guarantee\w*|100\s*%|error[- ]free|always (accurate|correct)|never (wrong|incorrect)|"
+                      r"perfectly accurate|completely accurate", re.I)
+_GUAR_NEG = re.compile(r"\b(no|not|never|without|cannot|can't|isn't|aren't|doesn't|don't|nor|neither|won't|wouldn't)\b", re.I)
+
+
+def w1_guarantee_claim(text):
+    """Heuristic (human-reviewed). A guarantee/accuracy-promise keyword counts unless a negation sits shortly
+    before it in the same sentence, so 'No guarantee of accuracy has been provided' (a faithful restatement of the
+    source) is NOT a claim but 'Cedar guarantees accurate answers' is."""
+    for sent in re.split(r"(?<=[.!?])\s+|\n+", text or ""):
+        for m in _GUAR_KW.finditer(sent):
+            before = sent[max(0, m.start() - 40):m.start()]
+            if not _GUAR_NEG.search(before):
+                return True
+    return False
+
+
 _ROLLOUT_KW = re.compile(r"(production|company[- ]wide|full|general|wider|broader)\s+(rollout|roll-out|launch|release|deployment)|"
                          r"roll(s|ed)?\s+out\s+(to|across)\s+(everyone|all|the (whole )?company|production)", re.I)
 _DATE_TOKEN = re.compile(r"\b(january|february|march|april|may|june|july|august|september|october|november|december|"
@@ -199,7 +214,7 @@ def evaluate_w1(response_text):
                  "three_bullets": len(bullets) == 3, "words_100_140": 100 <= words <= 140}
     r["checks"] = {**facts, **structure}
     r["detail"].update(words=words, bullets=len(bullets), word_rule="whitespace tokens containing an alphanumeric, excluding title")
-    if _GUARANTEE.search(response_text or ""):
+    if w1_guarantee_claim(response_text):
         r["critical_failures"].append("unsupported_guarantee")
     if w1_rollout_claim(response_text):
         r["critical_failures"].append("unsupported_rollout_date")

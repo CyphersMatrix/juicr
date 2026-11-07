@@ -71,8 +71,18 @@ def main():
                 port=int(os.environ.get("JUICR_PORT", "8810")), log_level="warning", server_header=False)
 
 
+def rescore(exp):
+    data = _data()
+    be = QueueBackend()
+    ctl = Controller(str(data / "juicr.db"), be)
+    o = Orchestrator(ctl, be, EvidenceStore(str(data / "evidence")), mode="sim")   # evaluation only; no model calls
+    print(f"appended {o.rescore(exp)} new evaluation(s) for {exp}; earlier evaluations are kept")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) >= 2 and sys.argv[1] == "token":
+    if len(sys.argv) >= 3 and sys.argv[1] == "rescore":
+        rescore(sys.argv[2])
+    elif len(sys.argv) >= 2 and sys.argv[1] == "token":
         make_token(sys.argv[2] if len(sys.argv) > 2 else "", sys.argv[3] if len(sys.argv) > 3 else "mcp")
     else:
         main()

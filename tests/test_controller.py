@@ -227,6 +227,19 @@ class TestLifecycle(Base):
         self.assertEqual(self.c.state("e1"), "cancelled")
         self.assertEqual(self.c.budget("e1")["requests"]["unknown"], 1)
 
+    def test_approved_experiment_with_no_trials_survives_restart_and_sweeps(self):
+        self.new_exp()                                           # approved window, nothing admitted yet
+        c2 = Controller(self.path, FakeBackend(), self.clk)
+        self.assertEqual(c2.reconcile_after_restart(), 0)
+        c2.sweep_expired()
+        self.assertEqual(c2.state("e1"), "queued")               # still waiting for its trials
+        c2.admit(self.mcp, "e1", "a", {"requests": 1})           # and can still accept them
+        self.assertEqual(c2.trial_state("a"), "queued")
+
+    def test_cancelling_an_experiment_with_no_trials_reaches_cancelled(self):
+        self.new_exp(); self.c.cancel(self.user, "e1")
+        self.assertEqual(self.c.state("e1"), "cancelled")
+
     def test_cancel_with_nothing_running_reaches_cancelled(self):
         self.new_exp()
         self.c.admit(self.mcp, "e1", "a", {"requests": 1})

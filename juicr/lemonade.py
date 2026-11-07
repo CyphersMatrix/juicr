@@ -71,7 +71,8 @@ class LemonadeClient:
         t0 = time.monotonic()
         resp = None
         out = {"text": "", "reasoning": "", "usage": None, "timings": None, "first_event_s": None,
-               "first_token_s": None, "events": 0, "ended": "ok", "error": None, "total_s": None}
+               "first_token_s": None, "events": 0, "ended": "ok", "error": None, "total_s": None,
+               "finish_reason": None}
         try:
             resp = self._req("POST", "/api/v1/chat/completions", b, timeout=min(deadline_s, 30))
             for raw in resp:
@@ -89,7 +90,10 @@ class LemonadeClient:
                 out["events"] += 1
                 if out["first_event_s"] is None:
                     out["first_event_s"] = time.monotonic() - t0
-                ch = (j.get("choices") or [{}])[0].get("delta", {})
+                choice0 = (j.get("choices") or [{}])[0]
+                if choice0.get("finish_reason"):
+                    out["finish_reason"] = choice0["finish_reason"]
+                ch = choice0.get("delta", {})
                 if ch.get("content"):
                     if out["first_token_s"] is None:
                         out["first_token_s"] = time.monotonic() - t0

@@ -161,7 +161,11 @@ class Runner:
                 tokens += u["completion_tokens"]
             else:
                 tokens_unknown = True
+            reasoning_h = self.ev.put_artifact(res["reasoning"].encode(), "text/plain") if res.get("reasoning") else None
             rec = {"attempt": n, "result": res["ended"], "request_sent": True, "response": text_h,
+                   "reasoning": reasoning_h, "reasoning_chars": len(res.get("reasoning") or ""),
+                   "visible_chars": len(res["text"]), "finish_reason": res.get("finish_reason"),
+                   "generation_truncated": res.get("finish_reason") == "length",
                    "error": res["error"], "usage": u, "backend_timings": res["timings"],
                    "client": {"first_event_s": res["first_event_s"], "first_token_s": res["first_token_s"],
                              "total_s": res["total_s"], "events": res["events"]},

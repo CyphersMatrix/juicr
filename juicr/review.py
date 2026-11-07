@@ -88,9 +88,11 @@ class EvalStore:
 
 
 def classify(trial_manifest, view):
-    """Keep failure classes distinct (plan sections 9-12). Returns {execution, task, judgment}."""
-    cls = trial_manifest.get("classification")
+    """Keep failure classes distinct (plan sections 9-12). Returns {execution, task, judgment[, note]}."""
+    cls = trial_manifest.get("classification") or ""
     outcome = trial_manifest.get("outcome")
+    if cls.startswith("task_limit"):                     # an agent hit its approved caps: a task result, not infrastructure
+        return {"execution": "ok", "task": "task_failure", "judgment": "complete", "note": "limit:" + cls.split(":", 1)[-1]}
     execution = {"task_response": "ok", "infrastructure": "infrastructure_failure", "timeout": "timeout",
                  "cancelled": "cancelled"}.get(cls, "unknown")
     if outcome != "done" or view is None:
@@ -108,5 +110,10 @@ def classify(trial_manifest, view):
         task = "task_success"
     else:
         task = "task_failure"
-    judgment = "pending_human" if view.get("pending_human") else "complete"
-    return {"execution": execution, "task": task, "judgment": judgment}
+    out = {"execution": execution, "task": task, "judgment": "pending_human" if view.get("pending_human") else "complete"}
+    d = view.get("detail") or {}
+    if d.get("no_visible_output"):
+        out["note"] = "no visible output (token cap reached, likely during reasoning)"
+    elif d.get("generation_truncated"):
+        out["note"] = "generation truncated at token cap"
+    return out

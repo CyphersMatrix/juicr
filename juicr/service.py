@@ -124,13 +124,14 @@ class Orchestrator:
         config = self._config(spec)
         self._segment(exp, config)["trials"].append(tid)
         base = dict(meta["spec"]["request"])
-        started, n = self.clock(), [0]
+        started, n, reasons = self.clock(), [0], []
 
         def step(messages, tools):
             n[0] += 1
             self.runner.ensure_config(config)               # re-verify before EVERY request
             j = self.client.chat(dict(base, messages=messages, tools=tools, max_tokens=512))
             m = j["choices"][0]["message"]
+            reasons.append(j["choices"][0].get("finish_reason"))
             return {"content": m.get("content") or "", "tokens": (j.get("usage") or {}).get("completion_tokens") or 0,
                     "tool_calls": [{"id": t.get("id"), "name": t["function"]["name"], "arguments": t["function"].get("arguments")}
                                    for t in (m.get("tool_calls") or [])]}
@@ -141,7 +142,8 @@ class Orchestrator:
         body = {"trial_id": tid, "outcome": "done" if ok else "failed",
                 "classification": "task_response" if ok else "task_limit:" + res["outcome"],
                 "attempts": [{"attempt": 1, "result": res["outcome"], "request_sent": True}], "requests_sent": res["requests"],
-                "tokens": res["tokens"], "final": {"response": h, "trace": th, "agent_outcome": res["outcome"],
+                "tokens": res["tokens"], "final": {"response": h, "trace": th, "agent_outcome": res["outcome"], "finish_reasons": reasons,
+                                                    "generation_truncated": "length" in reasons,
                                                     "client": {"total_s": res["elapsed_s"]}},
                 "limits": "tool results simulated; usage as reported by backend"}
         self.ev.finalize("trial", tid, body)
@@ -162,7 +164,26 @@ class Orchestrator:
             ev = {"case": case, "evaluator": {"name": "unavailable", "version": oracles.EVAL_VERSION}, "checks": {},
                   "dimensions": {}, "critical_failures": [], "needs_human": [], "status": "evaluation_unavailable",
                   "detail": {"error": str(e)[:200]}}
+        meta = self.ctl.trial_meta(tid) or {}
+        cap = ((meta.get("spec") or {}).get("request") or {}).get("max_tokens")
+        fin = body["final"]
+        trunc = bool(fin.get("generation_truncated")) or (cap is not None and (body.get("tokens") or 0) >= cap)
+        ev["detail"].update(completion_tokens=body.get("tokens"), visible_chars=len(text), max_tokens=cap,
+                            generation_truncated=trunc, no_visible_output=not text.strip(),
+                            truncation_basis="finish_reason" if fin.get("generation_truncated") else ("tokens>=cap (inferred)" if trunc else None))
+        if trunc and ev.get("status") == "not_runnable" and "fenced" in str(ev["detail"].get("reason")):
+            ev["detail"]["reason"] = "truncated at the token cap before the code block closed"
         self.es.add_auto(tid, ev)
+
+    def rescore(self, exp_id):
+        """Append a fresh automatic evaluation (current oracles) for every finished trial. Evidence and earlier
+        evaluations are never edited; the effective view uses the latest."""
+        n = 0
+        for t in self.ctl.list_trials(exp_id):
+            man = self.ev.manifest("trial", t["id"])
+            if man and man["body"].get("outcome") == "done":
+                self._evaluate(t["id"], (t["meta"] or {}).get("case"), man["body"]); n += 1
+        return n
 
     def _maybe_restore(self, exp):
         if self.mode != "real" or exp not in self.segments:
@@ -213,7 +234,7 @@ class Orchestrator:
             if r["case"] is None:
                 continue
             k = (r["case"], r["temperature"])
-            d = out.setdefault(k, {"n": 0, "finished": 0, "success": 0, "critical": 0, "pending": 0, "infra": 0})
+            d = out.setdefault(k, {"n": 0, "finished": 0, "success": 0, "critical": 0, "pending": 0, "infra": 0, "truncated": 0})
             d["n"] += 1
             if r["class"]:
                 d["finished"] += 1
@@ -221,6 +242,7 @@ class Orchestrator:
                 d["critical"] += r["class"]["task"] == "critical_failure"
                 d["infra"] += r["class"]["execution"] in ("infrastructure_failure", "timeout")
                 d["pending"] += r["class"]["judgment"] == "pending_human"
+                d["truncated"] += bool(r["class"].get("note")) and ("truncated" in r["class"]["note"] or "token cap" in r["class"]["note"])
         return [dict(case=k[0], temperature=k[1], **v) for k, v in sorted(out.items(), key=lambda kv: (kv[0][0], kv[0][1] or 0))]
 
     # -- blind review ------------------------------------------------------------------
