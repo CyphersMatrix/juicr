@@ -96,6 +96,8 @@ def classify(trial_manifest, view):
     if outcome != "done" or view is None:
         return {"execution": execution, "task": "not_evaluated",
                 "judgment": "not_applicable" if view is None else "complete"}
+    if view.get("status") == "evaluation_unavailable":     # oracle could not run: not a task result either way
+        return {"execution": execution, "task": "not_evaluated", "judgment": "evaluation_unavailable"}
     crit = bool(view.get("critical_failures"))
     checks = [v for v in view["checks"].values() if v is not None]
     if view["status"] == "not_runnable":

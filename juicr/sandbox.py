@@ -106,6 +106,11 @@ def run_python(files, entry, timeout_s=10, memory="128m", pids=32, cpus="1", max
             timer.cancel()
             if p.poll() is None:
                 p.kill()
+            for fh in (p.stdout, p.stderr):
+                try:
+                    fh.close()
+                except OSError:
+                    pass
             subprocess.run(["podman", "rm", "-f", "--ignore", name], capture_output=True, env=_env())
         text_err = err.decode("utf-8", "replace")
         rc = p.returncode

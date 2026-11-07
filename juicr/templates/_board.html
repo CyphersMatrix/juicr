@@ -9,13 +9,14 @@
 <h2 class="sec">Awaiting your approval</h2>
 {% for e in pending %}
 <article class="card pend" id="exp-{{ e.id }}">
-<div class="card-h"><div><h3>{{ e.id }}</h3><p class="meta">Created by {{ e.creator }}. Nothing runs until you open a window and approve a budget.</p></div><span class="badge awaiting_approval">awaiting approval</span></div>
+<div class="card-h"><div><h3>{{ e.id }}{% if e.spec.pack %} <span class="chip">{{ e.spec.pack }}</span>{% endif %}</h3><p class="meta">Created by {{ e.creator }}. Nothing runs until you open a window and approve a budget.</p></div><span class="badge awaiting_approval">awaiting approval</span></div>
 <form hx-post="/experiments/{{ e.id }}/approve" hx-target="#board" hx-swap="innerHTML" class="fgrid">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <label class="field"><span>Window (min)</span><input type="number" name="window_min" value="60" min="1" step="any" required></label>
 <label class="field"><span>Grace (min, or "unlimited")</span><input name="grace" value="10" pattern="unlimited|[0-9.]+"></label>
 <label class="field"><span>Requests</span><input type="number" name="requests" value="150" min="0" step="any"></label>
-<label class="field"><span>Tokens</span><input type="number" name="tokens" value="0" min="0" step="any"></label>
+<label class="field"><span>Tokens</span><input type="number" name="tokens" value="{{ 60000 if e.spec.pack else 0 }}" min="0" step="any"></label>
+<label class="field"><span>Tool calls</span><input type="number" name="tool_calls" value="{{ 24 if e.spec.pack else 0 }}" min="0" step="any"></label>
 <label class="field"><span>Seconds</span><input type="number" name="seconds" value="3600" min="0" step="any"></label>
 <button class="btn primary">Approve window &amp; budget</button></form>
 </article>{% endfor %}{% endif %}

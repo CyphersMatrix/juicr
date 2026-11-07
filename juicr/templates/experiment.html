@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block body %}
+<div class="shell" hx-headers='{"X-CSRF-Token": "{{ csrf }}"}'>
+<aside class="side"><div class="brand">{% include "_mark.html" %}<div><b>JUICR</b><small>Lemonade bench</small></div></div>
+<nav><a class="nav" href="/"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>Experiments</a></nav>
+<form method="post" action="/logout" class="signout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost wide">Sign out</button></form></aside>
+<main class="main">
+<p class="crumb"><a class="lnk" href="/">Experiments</a> / {{ e.id }}</p>
+<header class="top"><div><h1>{{ e.id }} <span class="badge {{ e.state }}">{{ e.state }}</span></h1>
+<p class="sub">{% if e.spec.pack %}{{ e.spec.pack }} · {{ e.spec.model }} · context {{ e.spec.load.ctx_size }}{% else %}Custom experiment{% endif %}</p></div>
+<div class="top-r">{% if mode == "real" %}<span class="chip live"><i></i>Live: Lemonade</span>{% else %}<span class="chip warn"><i></i>Simulated backend</span>{% endif %}</div></header>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if e.budgets %}<section class="card"><div class="budgets">
+{% for d, b in e.budgets.items() %}<div class="bud"><div class="bud-t"><span>{{ d }}</span><span><b>{{ b.used|round(1)|string|replace('.0','') }}</b> / {{ b.lim|round(1)|string|replace('.0','') }}{% if b.unknown %} <abbr title="Some usage was unknown, not counted as zero">?</abbr>{% endif %}</span></div>
+<svg class="bar" width="100%" height="8" role="img" aria-label="{{ d }} {{ b.pct_used }} percent used"><rect width="100%" height="8" rx="4" class="bar-bg"/><rect width="{{ b.pct_used }}%" height="8" rx="4" class="bar-used {{ 'over' if b.over }}"/>{% if b.pct_res %}<rect x="{{ b.pct_used }}%" width="{{ b.pct_res }}%" height="8" class="bar-res"/>{% endif %}</svg></div>{% endfor %}</div></section>{% endif %}
+<div class="row acts-row">
+{% if can_load_pilot %}<form method="post" action="/experiments/{{ e.id }}/pilot"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn primary">Queue the 30 pilot trials</button></form>{% endif %}
+{% if pending_reviews %}<a class="btn ghost" href="/experiments/{{ e.id }}/review">Blind review ({{ pending_reviews }} waiting)</a>{% endif %}
+</div>
+{% if pending_reviews %}<p class="muted note">Tip: review before reading the results below; the review page hides temperature, seed and condition.</p>{% endif %}
+<div id="results" hx-get="/experiments/{{ e.id }}/results" hx-trigger="every 4s" hx-swap="innerHTML">{% include "_results.html" %}</div>
+</main></div>{% endblock %}

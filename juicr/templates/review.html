@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block body %}
+<main class="main" style="margin:0 auto">
+<p class="crumb"><a class="lnk" href="/experiments/{{ exp_id }}">&larr; {{ exp_id }}</a></p>
+<h1>Blind review</h1><p class="sub">You see only the case and the response. Temperature, seed and condition are hidden.</p>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if not pk %}<div class="empty"><h3>Nothing to review</h3><p>All pending human ratings are done.</p></div>{% else %}
+<p class="muted">{{ pk.remaining }} waiting · case <b>{{ pk.case }}</b> · rubric {{ pk.rubric_version }}</p>
+<article class="card"><pre class="resp">{{ pk.response }}</pre></article>
+<form method="post" action="/experiments/{{ exp_id }}/review" class="card rate">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="packet_id" value="{{ pk.packet_id }}">
+{% for d in pk.rate %}<fieldset><legend>{% if d == "citation_support" %}Citation support{% elif d == "audience_clarity" %}Audience and clarity{% else %}Tone{% endif %}</legend>
+<p class="muted">{% if d == "citation_support" %}Does every cited fact appear in the document it cites?{% elif d == "audience_clarity" %}Would a nontechnical reader understand it on one read?{% else %}Calm and neutral, not promotional or alarming?{% endif %}</p>
+<div class="row">{% for n, lab in [(0, "0 No"), (1, "1 Partly"), (2, "2 Yes")] %}<label class="radio"><input type="radio" name="s_{{ d }}" value="{{ n }}" required> {{ lab }}</label>{% endfor %}</div></fieldset>{% endfor %}
+<label class="field"><span>Notes (optional)</span><input name="notes" maxlength="2000"></label>
+<button class="btn primary">Save rating</button></form>{% endif %}
+</main>{% endblock %}

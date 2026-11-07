@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS budget(
 CREATE TABLE IF NOT EXISTS trial(
   id TEXT PRIMARY KEY, experiment_id TEXT NOT NULL, state TEXT NOT NULL,
   admitted REAL NOT NULL, cost TEXT NOT NULL, handle TEXT);
+CREATE TABLE IF NOT EXISTS trial_meta(
+  trial_id TEXT PRIMARY KEY, experiment_id TEXT NOT NULL, meta TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS reservation(
   id INTEGER PRIMARY KEY AUTOINCREMENT, experiment_id TEXT NOT NULL,
   trial_id TEXT NOT NULL, cost TEXT NOT NULL, open INTEGER NOT NULL DEFAULT 1);
@@ -195,8 +197,12 @@ class Controller:
         if exp["window_start"] is None or now < exp["window_start"]:
             raise PolicyError("window not open")
 
-    def admit(self, caller, exp_id, trial_id, cost):
+    def admit(self, caller, exp_id, trial_id, cost, meta=None):
         """Queue a trial. New admission only while the window is open; grace never admits."""
+        self.admit_many(caller, exp_id, [(trial_id, cost, meta)])
+
+    def admit_many(self, caller, exp_id, trials):
+        """Queue several trials atomically: all are admitted or none. trials: [(id, cost, meta|None)]."""
         now = self.clock()
         c = self._tx()
         try:
@@ -206,8 +212,13 @@ class Controller:
             self._window_check(c, exp, now, now)
             if now > exp["window_end"]:
                 raise PolicyError("window closed: grace does not admit new work")
-            c.execute("INSERT INTO trial(id,experiment_id,state,admitted,cost) VALUES(?,?,?,?,?)",
-                      (trial_id, exp_id, "queued", now, json.dumps(cost)))
+            for tid, cost, meta in trials:
+                c.execute("INSERT INTO trial(id,experiment_id,state,admitted,cost) VALUES(?,?,?,?,?)",
+                          (tid, exp_id, "queued", now, json.dumps(cost)))
+                if meta is not None:
+                    c.execute("INSERT INTO trial_meta(trial_id,experiment_id,meta) VALUES(?,?,?)",
+                              (tid, exp_id, json.dumps(meta)))
+            self._event(c, exp_id, "admitted", f"{len(trials)} trial(s)")
             c.execute("COMMIT")
         except BaseException:
             c.execute("ROLLBACK"); raise
@@ -423,6 +434,7 @@ class Controller:
             d["budgets"] = {r["dim"]: dict(r) for r in c.execute("SELECT * FROM budget WHERE experiment_id=?", (e["id"],))}
             d["trials"] = {r["state"]: r["n"] for r in c.execute(
                 "SELECT state, COUNT(*) n FROM trial WHERE experiment_id=? GROUP BY state", (e["id"],))}
+            d["spec"] = json.loads(d.get("spec") or "{}")
             d["approvals"] = [r["kind"] for r in c.execute("SELECT kind FROM approval WHERE experiment_id=?", (e["id"],))]
             out.append(d)
         c.close()
@@ -468,6 +480,31 @@ class Controller:
                       (trial_id,)).fetchone()
         c.close()
         return bool(r) and r["state"] in ("cancelling", "cancelled")
+
+    def trial_meta(self, trial_id):
+        c = self._conn()
+        r = c.execute("SELECT meta FROM trial_meta WHERE trial_id=?", (trial_id,)).fetchone()
+        c.close()
+        return json.loads(r["meta"]) if r else None
+
+    def experiment_spec(self, exp_id):
+        c = self._conn()
+        r = c.execute("SELECT spec FROM experiment WHERE id=?", (exp_id,)).fetchone()
+        c.close()
+        return json.loads(r["spec"]) if r else None
+
+    def trial_experiment(self, trial_id):
+        c = self._conn()
+        r = c.execute("SELECT experiment_id FROM trial WHERE id=?", (trial_id,)).fetchone()
+        c.close()
+        return r["experiment_id"] if r else None
+
+    def list_trials(self, exp_id):
+        c = self._conn()
+        rows = c.execute("SELECT t.id, t.state, m.meta FROM trial t LEFT JOIN trial_meta m ON m.trial_id=t.id "
+                         "WHERE t.experiment_id=? ORDER BY t.admitted, t.rowid", (exp_id,)).fetchall()
+        c.close()
+        return [{"id": r["id"], "state": r["state"], "meta": json.loads(r["meta"]) if r["meta"] else {}} for r in rows]
 
     def trial_state(self, trial_id):
         c = self._conn()

@@ -249,6 +249,8 @@ Expose inventory, experiments, flexible supported settings, windows/budgets, pro
 
 **Acceptance:** equivalent UI/MCP operations enforce identical policies. Custom arguments cannot bypass reserved controls, accounting or credential boundaries. Preserve agreed broad configuration permissions.
 
+**Status 2026-11-07:** implemented and deployed in simulated mode (see devlog): runner wired into the service (sim and real backends), experiment detail and results, pilot launcher, blind review, MCP over HTTP with bearer token. The service runs with `JUICR_BACKEND=sim`; real inference stays off until the owner switches it and opens a window.
+
 ### Phase 5 — measured pilot
 
 Use approved window/budget for accounted smoke measurements, then the paired pilot. Record effective limits, cache condition, request totals, review results and restoration.

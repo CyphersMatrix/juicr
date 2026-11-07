@@ -1,9 +1,0 @@
-Introducing Cedar: a small pilot for document search
-
-We are starting a small internal pilot called Cedar to help our analysts find information in documents more easily. The pilot is intentionally limited, and we will learn from how the team uses it before making any decisions about what comes next.
-
-- Cedar begins on May 2 and is open to a group of 12 analysts who will try it in their regular work.
-- The pilot has a budget of $40,000, which covers the time and tools needed to run it carefully.
-- Because search results can be wrong, a person will check every citation by hand before anyone relies on an answer.
-
-Thank you for your patience while the team tries Cedar. We will share what we learn.

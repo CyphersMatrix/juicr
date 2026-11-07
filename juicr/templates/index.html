@@ -11,11 +11,12 @@
 </aside>
 <main class="main">
 <header class="top"><div><h1>Experiments</h1><p class="sub">Windows, budgets and runs against Lemonade</p></div>
-<div class="top-r"><span class="chip warn" title="Phase 1: no real inference can run"><i></i>Simulated backend</span>
+<div class="top-r">{% if mode == "real" %}<span class="chip live" title="Trials call Lemonade once an owner window is approved"><i></i>Live: Lemonade</span>{% else %}<span class="chip warn" title="Canned reference answers; Lemonade is not called"><i></i>Simulated backend</span>{% endif %}
 <details class="pop"><summary class="btn primary">New experiment</summary>
 <form hx-post="/experiments" hx-target="#board" hx-swap="innerHTML" class="pop-body">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <label class="field"><span>Experiment id</span><input name="exp_id" pattern="[A-Za-z0-9_\-]+" maxlength="40" required placeholder="gemma-e4b-pilot"></label>
+<label class="field"><span>Type</span><select name="kind"><option value="pilot">Pilot pack (30 trials, approved)</option><option value="custom">Custom (empty)</option></select></label>
 <button class="btn primary wide">Create</button></form></details></div></header>
 <div id="board">{% include "_board.html" %}</div>
 </main></div>{% endblock %}

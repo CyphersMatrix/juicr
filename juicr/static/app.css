@@ -85,3 +85,13 @@ i.seg.done{background:var(--ok)}i.seg.running{background:var(--acc)}i.seg.queued
   nav{display:none}.signout{margin-left:auto}.signout .btn{width:auto}
   .main{padding:16px 14px 40px}.stats{grid-template-columns:repeat(2,1fr)}.top h1{font-size:21px}
 }
+/* detail, results, review */
+.lnk{color:var(--acc);text-decoration:none}.lnk:hover{text-decoration:underline}.crumb{color:var(--mut);font-size:13px;margin-bottom:10px}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th{background:var(--surface2);color:var(--mut);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.tbl tr:last-child td{border-bottom:0}.bad{color:var(--err);font-weight:600}.na{color:var(--mut)}
+.note{font-size:13px;margin:8px 0 0}.acts-row{margin:14px 0 4px;gap:10px}.chip.live{background:var(--ok-s);color:var(--ok);border-color:transparent}
+select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
+.resp{white-space:pre-wrap;word-break:break-word;font:13.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;max-height:55vh;overflow:auto}
+.rate fieldset{border:0;padding:0;margin:0 0 14px}.rate legend{font-weight:600;padding:0}.radio{display:flex;align-items:center;gap:6px;color:var(--fg);font-size:14px;flex-direction:row}
+.radio input{width:auto}

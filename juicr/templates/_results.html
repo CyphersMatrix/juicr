@@ -1,0 +1,16 @@
+{% macro v(x, unit="") %}{% if x is none %}<span class="na" title="unavailable">–</span>{% else %}{{ x|round(2) }}{{ unit }}{% endif %}{% endmacro %}
+{% if summary %}
+<h2 class="sec">By case and temperature</h2>
+<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Case</th><th>Temp</th><th>Trials</th><th>Finished</th><th>Success</th><th>Critical</th><th>Infra/timeout</th><th>Awaiting review</th></tr></thead><tbody>
+{% for s in summary %}<tr><td>{{ s.case }}</td><td>{{ s.temperature }}</td><td>{{ s.n }}</td><td>{{ s.finished }}</td><td>{{ s.success }}</td><td class="{{ 'bad' if s.critical }}">{{ s.critical }}</td><td>{{ s.infra }}</td><td>{{ s.pending }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="muted note">Counts only, with sample sizes. There is no overall score; with 3 seeds these are exploratory observations.</p>
+{% endif %}
+<h2 class="sec">Trials</h2>
+{% if not rows %}<div class="empty"><h3>No trials queued</h3><p>{% if e.state == "queued" %}Queue the pilot trials above.{% else %}Approve a window and budget on the dashboard first.{% endif %}</p></div>{% else %}
+<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Trial</th><th>State</th><th>Execution</th><th>Task</th><th>Judgment</th><th>Critical</th><th>Total s</th><th>1st token s</th><th>tok/s</th><th>Cached</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.order or "–" }}</td><td>{{ r.id }}{% if r.simulated %} <span class="chip">sim</span>{% endif %}</td><td><span class="badge {{ r.state }}">{{ r.state }}</span></td>
+<td>{{ r.class.execution if r.class else "–" }}</td><td>{{ r.class.task if r.class else "–" }}</td><td>{{ r.class.judgment if r.class else "–" }}</td>
+<td class="{{ 'bad' if r.critical }}">{{ r.critical|join(", ") or "–" }}</td>
+<td>{{ v(r.total_s) }}</td><td>{{ v(r.first_token_s) }}</td><td>{{ v(r.tok_s) }}</td><td>{{ v(r.cached) }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}

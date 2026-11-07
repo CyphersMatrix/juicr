@@ -279,3 +279,20 @@ class TestLifecycle(Base):
         self.c.sweep_expired()
         self.assertEqual(self.c.trial_state("a"), "cancelled")
         self.assertEqual(self.c.state("e1"), "partial")
+
+
+class TestSpecsAndBatchAdmit(Base):
+    def test_admit_many_is_all_or_nothing(self):
+        self.new_exp(budgets={"requests": 10})
+        self.c.admit(self.mcp, "e1", "dup", {"requests": 1})
+        with self.assertRaises(Exception):                       # duplicate id in the batch -> nothing admitted
+            self.c.admit_many(self.mcp, "e1", [("n1", {"requests": 1}, {"case": "C1"}), ("dup", {"requests": 1}, None)])
+        self.assertIsNone(self.c.trial_state("n1")); self.assertIsNone(self.c.trial_meta("n1"))
+        self.c.admit_many(self.mcp, "e1", [("n1", {"requests": 1}, {"case": "C1", "seed": 17}), ("n2", {"requests": 1}, None)])
+        self.assertEqual(self.c.trial_meta("n1")["seed"], 17)
+        self.assertEqual([t["id"] for t in self.c.list_trials("e1")], ["dup", "n1", "n2"])
+
+    def test_experiment_spec_persists_and_shows_in_snapshot(self):
+        self.c.create_experiment("p1", self.mcp, {"pack": "pilot-1", "model": "M"})
+        self.assertEqual(self.c.experiment_spec("p1")["model"], "M")
+        self.assertEqual(self.c.snapshot()[0]["spec"]["pack"], "pilot-1")

@@ -4,7 +4,7 @@
 {% endif %}
 {% for e in live %}
 <article class="card" id="exp-{{ e.id }}">
-<div class="card-h"><div><h3>{{ e.id }}</h3>
+<div class="card-h"><div><h3><a class="lnk" href="/experiments/{{ e.id }}">{{ e.id }}</a>{% if e.spec.pack %} <span class="chip">{{ e.spec.pack }}</span>{% endif %}</h3>
 <p class="meta">{{ e.creator }}
 {% if e.remaining_min is not none %}<span class="dot"></span>{% if e.window_open %}window closes in {{ e.remaining_min|round|int }} min{% else %}window closed{% endif %}{% endif %}
 {% if e.window_end %}<span class="dot"></span>{% if e.grace_s is none %}unlimited grace{% else %}{{ (e.grace_s/60)|round|int }} min grace{% endif %}{% endif %}</p></div>

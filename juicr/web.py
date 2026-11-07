@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 
+from . import cases
 from .controller import DIMS, PolicyError, Principal
 
 HERE = Path(__file__).parent
@@ -42,7 +43,7 @@ class LoginLimiter:
         self.fails.setdefault(key, []).append(self.clock())
 
 
-def create_app(controller, session_secret, api_tokens=None, clock=time.time):
+def create_app(controller, session_secret, api_tokens=None, clock=time.time, orch=None, mode="sim"):
     """api_tokens: {sha256(token): (role, name)} for non-owner API callers."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.controller = controller
@@ -50,6 +51,7 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
     limiter = LoginLimiter(clock=clock)
     api_tokens = api_tokens or {}
     templates = Jinja2Templates(directory=str(HERE / "templates"))
+    templates.env.globals["mode"] = mode
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
     @app.middleware("http")
@@ -191,6 +193,9 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
         p, sess = need_owner(request)
         return templates.TemplateResponse(request, "_live.html", page_ctx(request, sess))
 
+    def pilot_spec():
+        return {"pack": cases.PACK_VERSION, "model": "Gemma-4-E4B-it-GGUF", "load": {"ctx_size": 8192}}
+
     def rerender(request, sess):
         return templates.TemplateResponse(request, "_board.html", page_ctx(request, sess))
 
@@ -200,13 +205,13 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
         return templates.TemplateResponse(request, "_board.html", ctx, status_code=code)
 
     @app.post("/experiments", response_class=HTMLResponse)
-    def create(request: Request, exp_id: str = Form(...), csrf: str = Form("")):
+    def create(request: Request, exp_id: str = Form(...), kind: str = Form("custom"), csrf: str = Form("")):
         p, sess = need_owner(request)
         check_csrf(request, sess, csrf)
-        if not exp_id.replace("-", "").replace("_", "").isalnum() or len(exp_id) > 40:
+        if not exp_id.replace("-", "").replace("_", "").isalnum() or len(exp_id) > 40 or exp_id == "live":
             return fail(request, sess, "Experiment id: letters, digits, - and _ only (max 40).")
         try:
-            controller.create_experiment(exp_id, p)
+            controller.create_experiment(exp_id, p, pilot_spec() if kind == "pilot" else None)
         except Exception as e:  # duplicate id etc.
             return fail(request, sess, f"Could not create: {type(e).__name__}")
         return rerender(request, sess)
@@ -214,10 +219,11 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
     @app.post("/experiments/{exp_id}/approve", response_class=HTMLResponse)
     def approve(request: Request, exp_id: str, window_min: float = Form(...), grace: str = Form("10"),
                 requests: float = Form(0), tokens: float = Form(0), seconds: float = Form(0),
-                csrf: str = Form("")):
+                tool_calls: float = Form(0), csrf: str = Form("")):
         p, sess = need_owner(request)
         check_csrf(request, sess, csrf)
-        budgets = {k: v for k, v in (("requests", requests), ("tokens", tokens), ("seconds", seconds)) if v > 0}
+        budgets = {k: v for k, v in (("requests", requests), ("tokens", tokens), ("seconds", seconds),
+                                     ("tool_calls", tool_calls)) if v > 0}
         if not budgets or window_min <= 0:
             return fail(request, sess, "Set a positive window and at least one budget.")
         g = None if grace.strip().lower() == "unlimited" else float(grace) * 60
@@ -249,6 +255,162 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time):
         except PolicyError as e:
             return fail(request, sess, str(e), 400)
         return rerender(request, sess)
+
+    # -- experiment detail, pilot launcher, blind review -----------------------------
+    def detail_ctx(request, sess, exp_id, extra=None):
+        e = next((x for x in page_ctx(request, sess)["exps"] if x["id"] == exp_id), None)
+        if e is None:
+            raise HTTPException(404, "no such experiment")
+        rows = orch.trial_rows(exp_id) if orch else []
+        ctx = {"e": e, "rows": rows, "summary": orch.summary(rows) if orch else [], "csrf": sess["c"],
+               "can_load_pilot": bool(orch) and e["spec"].get("pack") == cases.PACK_VERSION and e["state"] == "queued" and not e["trials"],
+               "pending_reviews": len(orch.pending_review(exp_id)) if orch else 0}
+        ctx.update(extra or {})
+        return ctx
+
+    @app.get("/experiments/{exp_id}", response_class=HTMLResponse)
+    def experiment_page(request: Request, exp_id: str):
+        p, sess = who(request)
+        if not p or not sess:
+            return RedirectResponse("/login", status_code=303)
+        return templates.TemplateResponse(request, "experiment.html", detail_ctx(request, sess, exp_id))
+
+    @app.post("/experiments/{exp_id}/pilot", response_class=HTMLResponse)
+    def load_pilot(request: Request, exp_id: str, csrf: str = Form("")):
+        p, sess = need_owner(request)
+        check_csrf(request, sess, csrf)
+        spec = controller.experiment_spec(exp_id)
+        if not orch or not spec or spec.get("pack") != cases.PACK_VERSION:
+            raise HTTPException(400, "not a pilot experiment")
+        try:
+            controller.admit_many(p, exp_id, orch.pilot_admission(spec, exp_id))
+        except PolicyError as e:
+            return templates.TemplateResponse(request, "experiment.html", detail_ctx(request, sess, exp_id, {"error": str(e)}), status_code=409)
+        except Exception as e:
+            return templates.TemplateResponse(request, "experiment.html", detail_ctx(request, sess, exp_id, {"error": f"Could not load pilot: {type(e).__name__}"}), status_code=409)
+        return RedirectResponse(f"/experiments/{exp_id}", status_code=303)
+
+    @app.get("/experiments/{exp_id}/results", response_class=HTMLResponse)
+    def results_partial(request: Request, exp_id: str):
+        p, sess = need_owner(request)
+        return templates.TemplateResponse(request, "_results.html", detail_ctx(request, sess, exp_id))
+
+    @app.get("/experiments/{exp_id}/review", response_class=HTMLResponse)
+    def review_page(request: Request, exp_id: str):
+        p, sess = who(request)
+        if not p or not sess:
+            return RedirectResponse("/login", status_code=303)
+        pk = orch.next_packet(exp_id, salt=session_secret) if orch else None
+        return templates.TemplateResponse(request, "review.html", {"pk": pk, "exp_id": exp_id, "csrf": sess["c"], "error": None})
+
+    @app.post("/experiments/{exp_id}/review", response_class=HTMLResponse)
+    async def review_submit(request: Request, exp_id: str):
+        p, sess = need_owner(request)
+        form = await request.form()
+        check_csrf(request, sess, form.get("csrf", ""))
+        pid = str(form.get("packet_id", ""))
+        try:
+            scores = {k[2:]: int(v) for k, v in form.items() if k.startswith("s_")}
+            orch.submit_review(pid, "owner", scores, str(form.get("notes", ""))[:2000])
+        except (ValueError, KeyError, OSError, Exception) as e:
+            pk = orch.next_packet(exp_id, salt=session_secret) if orch else None
+            return templates.TemplateResponse(request, "review.html", {"pk": pk, "exp_id": exp_id, "csrf": sess["c"],
+                                                                      "error": "Could not save: " + str(e)[:120]}, status_code=400)
+        return RedirectResponse(f"/experiments/{exp_id}/review", status_code=303)
+
+    # -- MCP over HTTP (JSON-RPC 2.0, bearer token, never the owner cookie) -----------
+    MCP_TOOLS = [
+        {"name": "list_experiments", "description": "List experiments with state, budgets and trial counts.",
+         "inputSchema": {"type": "object", "properties": {}}},
+        {"name": "get_experiment", "description": "Experiment detail: budgets, trial states, per case/temperature summary.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
+        {"name": "create_pilot_experiment", "description": "Create an experiment holding the approved pilot pack. It runs nothing until the owner opens a window and approves a budget.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
+        {"name": "load_pilot", "description": "Queue the 30 pilot trials. Only works inside an owner-approved window; budgets still apply.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
+        {"name": "cancel_experiment", "description": "Cancel an experiment; active work is stopped where supported.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
+        {"name": "check_protected", "description": "Ask whether the owner has granted publication or external_judging for an experiment. This never grants anything.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "kind": {"type": "string", "enum": ["publication", "external_judging", "budget_increase"]}}, "required": ["id", "kind"]}},
+        {"name": "get_results", "description": "Per-trial outcome classes, critical failures, timings and pending human reviews. Unavailable values are null, never zero.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}}]
+
+    def mcp_call(p, name, a):
+        eid = str(a.get("id", ""))
+        if name == "list_experiments":
+            return [{"id": e["id"], "state": e["state"], "trials": e["trials"], "approvals": e["approvals"],
+                     "budgets": {d: {"limit": b["lim"], "used": b["used"], "reserved": b["reserved"], "unknown": bool(b["unknown"])} for d, b in e["budgets"].items()}}
+                    for e in controller.snapshot()]
+        if name == "create_pilot_experiment":
+            if not eid.replace("-", "").replace("_", "").isalnum() or len(eid) > 40 or eid == "live":
+                raise PolicyError("id: letters, digits, - and _ only (max 40)")
+            controller.create_experiment(eid, p, pilot_spec())
+            return {"created": eid, "state": "awaiting_approval", "note": "owner must open a window and approve a budget"}
+        if name == "load_pilot":
+            spec = controller.experiment_spec(eid)
+            if not orch or not spec or spec.get("pack") != cases.PACK_VERSION:
+                raise PolicyError("not a pilot experiment")
+            controller.admit_many(p, eid, orch.pilot_admission(spec, eid))
+            return {"queued": 30}
+        if name == "cancel_experiment":
+            controller.cancel(p, eid); return {"cancelling": eid}
+        if name == "check_protected":
+            return {"granted": controller.has_approval(eid, str(a.get("kind", "")))}
+        e = next((x for x in controller.snapshot() if x["id"] == eid), None)
+        if e is None:
+            raise PolicyError("no such experiment")
+        if name == "get_experiment":
+            rows = orch.trial_rows(eid) if orch else []
+            return {"id": eid, "state": e["state"], "trials": e["trials"], "approvals": e["approvals"],
+                    "summary": orch.summary(rows) if orch else []}
+        if name == "get_results":
+            return orch.trial_rows(eid) if orch else []
+        raise PolicyError("unknown tool")
+
+    @app.post("/mcp")
+    async def mcp(request: Request):
+        if request.headers.get("origin"):          # browsers send Origin; MCP clients do not (DNS-rebinding guard)
+            raise HTTPException(403, "browser origins are not allowed")
+        auth = request.headers.get("authorization", "")
+        if not auth.lower().startswith("bearer "):
+            raise HTTPException(401, "bearer token required")
+        p, _ = who(request)
+        if not p or p.role == "owner":
+            raise HTTPException(401, "invalid token")
+        raw = await request.body()
+        if len(raw) > 65536:
+            raise HTTPException(413, "too large")
+        try:
+            msg = json.loads(raw)
+        except ValueError:
+            return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
+        if not isinstance(msg, dict):
+            return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "batches not supported"}})
+        mid, method, params = msg.get("id"), msg.get("method"), msg.get("params") or {}
+        if mid is None:                             # notification
+            from fastapi import Response
+            return Response(status_code=202)
+        def ok(r): return JSONResponse({"jsonrpc": "2.0", "id": mid, "result": r})
+        if method == "initialize":
+            return ok({"protocolVersion": "2025-03-26", "capabilities": {"tools": {}},
+                       "serverInfo": {"name": "juicr", "version": "0.1"},
+                       "instructions": "Benchmark controller. Approvals, publication and budgets belong to the owner; you can queue and cancel within approved limits."})
+        if method == "ping":
+            return ok({})
+        if method == "tools/list":
+            return ok({"tools": MCP_TOOLS})
+        if method == "tools/call":
+            name = params.get("name"); args = params.get("arguments") or {}
+            if name not in {t["name"] for t in MCP_TOOLS} or not isinstance(args, dict):
+                return JSONResponse({"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "unknown tool or bad arguments"}})
+            try:
+                out = mcp_call(p, name, args)
+                return ok({"content": [{"type": "text", "text": json.dumps(out, default=str)}], "isError": False})
+            except PolicyError as e:
+                return ok({"content": [{"type": "text", "text": str(e)}], "isError": True})
+            except Exception as e:
+                return ok({"content": [{"type": "text", "text": f"error: {type(e).__name__}"}], "isError": True})
+        return JSONResponse({"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": "method not found"}})
 
     # -- JSON API ------------------------------------------------------------
     @app.get("/api/experiments")
