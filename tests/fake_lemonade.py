@@ -25,6 +25,7 @@ class State:
         self.unauth = 0
         self.truncate = False        # stream hidden reasoning + an unfinished code block, finish_reason=length
         self.agent_never_answers = False  # tool-using chat keeps asking for tools
+        self.sequential_tools = False     # one tool call per turn (what the real model did): needs 5 requests, not 4
         self.served_ctx = []         # ctx_size in effect for the target model when each chat was served
         self.drop_after_chat = False # unload the model after every chat (forces the pre-dispatch guard to matter)
 
@@ -66,6 +67,10 @@ def make(state):
                 msg = {"content": "", "tool_calls": [tc(0, "search_documents", {"query": "Cedar launch"})]}
             elif b.get("tools") and n == 1:
                 msg = {"content": "", "tool_calls": [tc(1, "search_documents", {"query": "Cedar launch date"})]}
+            elif b.get("tools") and state_ref.sequential_tools and n == 2:
+                msg = {"content": "", "tool_calls": [tc(2, "read_document", {"id": "A"})]}
+            elif b.get("tools") and state_ref.sequential_tools and n == 3:
+                msg = {"content": "", "tool_calls": [tc(3, "read_document", {"id": "B"})]}
             elif b.get("tools") and n == 2:
                 msg = {"content": "", "tool_calls": [tc(2, "read_document", {"id": "A"}), tc(3, "read_document", {"id": "B"})]}
             else:

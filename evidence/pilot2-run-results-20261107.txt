@@ -1,0 +1,57 @@
+order case temp seed state | execution task judgment | critical | total_s ttft tok/s cached
+ 1 W1 0.7 101 done   | ok task_success pending_human | - | 24.99 18.53 23.28 0
+ 2 W1 0.0 101 done   | ok task_success pending_human | - | 20.5 14.34 23.4 140
+ 3 A1 0.0 101 done   | ok task_failure complete | - | 22.59 - - -
+ 4 A1 0.7 101 done   | ok task_failure complete | - | 21.28 - - -
+ 5 A1 0.7  43 done   | ok task_success complete | - | 47.07 - - -
+ 6 A1 0.0  43 done   | ok task_failure complete | - | 19.65 - - -
+ 7 W1 0.0  43 done   | ok task_failure pending_human | - | 25.88 17.72 18.41 0
+ 8 W1 0.7  43 done   | ok task_failure pending_human | - | 34.7 27.11 20.79 140
+ 9 W1 0.0  17 done   | ok task_failure pending_human | - | 25.79 18.02 18.19 140
+10 W1 0.7  17 done   | ok task_failure pending_human | - | 37.23 29.67 17.41 140
+11 A1 0.0  17 done   | ok task_failure complete | - | 26.19 - - -
+12 A1 0.7  17 done   | ok task_success complete | - | 73.92 - - -
+13 C1 0.7 101 done   | ok task_failure complete | - | 75.52 37.67 15.93 0
+14 C1 0.0 101 done   | ok task_failure complete | - | 61.56 31.56 15.82 202
+15 C1 0.0  17 done   | ok task_failure complete | - | 75.79 42.76 15.65 202
+16 C1 0.7  17 done   | ok task_failure complete | - | 88.73 53.03 15.52 202
+17 C1 0.0  43 done   | ok task_failure complete | - | 73.57 36.49 13.89 202
+18 C1 0.7  43 done   | ok task_failure complete | - | 65.09 32.71 14.32 202
+
+{'case': 'A1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'A1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 2, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'C1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'C1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 0, 'critical': 0, 'pending': 0, 'infra': 0, 'truncated': 0}
+{'case': 'W1', 'temperature': 0.0, 'n': 3, 'finished': 3, 'success': 1, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 0}
+{'case': 'W1', 'temperature': 0.7, 'n': 3, 'finished': 3, 'success': 1, 'critical': 0, 'pending': 3, 'infra': 0, 'truncated': 0}
+
+--- per-trial: tokens | visible chars | reasoning chars | finish | truncated | key detail
+ C1-s17-t00: tok=1185 vis=1987 reas=2368 fin=stop trunc=False | 19/21 fail=['bad_not_list', 'bool_rejected']
+ C1-s17-t07: tok=1376 vis=2133 reas=2385 fin=stop trunc=False | 20/21 fail=['bool_rejected']
+ C1-s43-t00: tok=1021 vis=2003 reas=2110 fin=stop trunc=False | 19/21 fail=['bad_not_list', 'bool_rejected']
+ C1-s43-t07: tok=931 vis=1767 reas=1852 fin=stop trunc=False | 20/21 fail=['bool_rejected']
+ C1-s101-t00: tok=973 vis=1789 reas=1887 fin=stop trunc=False | 19/21 fail=['bad_not_list', 'bool_rejected']
+ C1-s101-t07: tok=1195 vis=2262 reas=2214 fin=stop trunc=False | 19/21 fail=['bad_not_list', 'bool_rejected']
+ W1-s17-t00: tok=468 vis=637 reas=1191 fin=stop trunc=False | words=96 bullets=3 fail=['words_100_140'] crit=[]
+ W1-s17-t07: tok=647 vis=600 reas=1930 fin=stop trunc=False | words=91 bullets=3 fail=['begins_may_2', 'words_100_140'] crit=[]
+ W1-s43-t00: tok=468 vis=651 reas=1196 fin=stop trunc=False | words=97 bullets=3 fail=['words_100_140'] crit=[]
+ W1-s43-t07: tok=720 vis=706 reas=2168 fin=stop trunc=False | words=104 bullets=3 fail=['begins_may_2'] crit=[]
+ W1-s101-t00: tok=478 vis=654 reas=1196 fin=stop trunc=False | words=103 bullets=3 fail=[] crit=[]
+ W1-s101-t07: tok=571 vis=757 reas=1512 fin=stop trunc=False | words=116 bullets=3 fail=[] crit=[]
+--- A1
+ A1-s17-t00: done reqs=2 calls=[S!] agent=finished fin=['tool_calls', 'stop'] false=['read_both_documents', 'recovered_after_transient_error', 'supported_answer'] crit=[] ans="I encountered a transient error while trying to look up Cedar's launch date and budget. I cannot proceed with "
+ A1-s17-t07: done reqs=5 calls=[S! S RA RB] agent=finished fin=['tool_calls', 'tool_calls', 'tool_calls', 'tool_calls', 'stop'] false=[] crit=[] ans='Based on the documents:\n\n*   **Launch Date:** May 2 (Document B supersedes the April 15 date in Document A).\n*'
+ A1-s43-t00: done reqs=2 calls=[S!] agent=finished fin=['tool_calls', 'stop'] false=['read_both_documents', 'recovered_after_transient_error', 'supported_answer'] crit=[] ans="I encountered a transient error while trying to look up Cedar's launch date and budget. I cannot proceed with "
+ A1-s43-t07: done reqs=4 calls=[S! S RA RB] agent=finished fin=['tool_calls', 'tool_calls', 'tool_calls', 'stop'] false=[] crit=[] ans='Based on the documents:\n\n*   **Launch Date:** May 2\n*   **Budget:** $40,000\n\n***\n\n**Draft Status Note:**\n\nCeda'
+ A1-s101-t00: done reqs=2 calls=[S!] agent=finished fin=['tool_calls', 'stop'] false=['read_both_documents', 'recovered_after_transient_error', 'supported_answer'] crit=[] ans="I encountered a transient error while trying to look up Cedar's launch date and budget. I am unable to draft t"
+ A1-s101-t07: done reqs=2 calls=[S!] agent=finished fin=['tool_calls', 'stop'] false=['read_both_documents', 'recovered_after_transient_error', 'supported_answer'] crit=[] ans="I encountered a transient error while trying to look up Cedar's launch date and budget. I cannot draft the sta"
+
+=== W1 date phrasing in the two trials that 'miss May 2'
+W1-s17-t07 -> [] | regex may\s*2\b matches: False
+W1-s43-t07 -> [] | regex may\s*2\b matches: False
+
+## Notes (added when exported)
+- Experiment gemma-e4b-pilot-2 (pack pilot-2: C1, W1, A1 rerun with 4096-token single-response cap, 300 s deadline, agent 6 requests / 4 tool calls / 1536 tokens per turn). Window approved 20:42 UTC 2026-11-07 (60 min, grace 10 min, 150 requests, 100,000 tokens, 3,600 s, 24 tool calls); run 20:42-20:57 UTC; 18 trials, all done; 29 requests, 823 s, 14,217 tokens, 12 tool calls.
+- Lemonade request counter 57 -> 86 (= juicr's 29); no other client observed; FLM never busy; final state = prior state. See evidence/pilot2-watch-*.jsonl.
+- No generation was truncated (finish_reason=stop in every trial); reasoning text is stored as evidence (not copied here).
+- C1 caveat: the harness check `bad_not_list` (non-list top-level argument) goes beyond what the prompt explicitly requires; excluding it, all six solutions pass 19/20 explicit checks and fail only `bool_rejected` (booleans accepted although the prompt says they are not integers).

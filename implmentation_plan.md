@@ -40,7 +40,8 @@ These are **reported observations**, not independently verified during creation 
 15. **Pilot defaults (decided 2026-11-07):** finite grace of 10 minutes; two bounded restoration attempts before warn-and-continue.
 16. **Pilot window and ceiling (decided 2026-11-07):** 60-minute window; 150 total inference-request ceiling (48 measured plus warmups, probes, retries). Per-response and per-agent caps in section 7 stand. Smoke measurements may still revise these before execution.
 17. **Pilot pack approved as-is (2026-11-07):** fixtures C1/D1/W1/E1/A1, sampling (top_p 0.95, top_k 64; temperature 0.0/0.7; seeds 17/43/101), limits, order seed and the A1 admission rule, as in `PILOT_REVIEW.md`. This does NOT approve running the pilot, publication or external judging; those stay separate owner approvals, A1's admission rule was met on 2026-11-07 (tool-call compatibility check, `evidence/a1-compat-20261107.json`).
-18. The concrete pilot pack and execution limits below are **proposals; item 17 records the owner's approval of the pack as written.
+18. **Pilot-2 approved (2026-11-07):** after run 1 showed two approved limits confounded results, the owner chose to rerun only C1, W1 and A1 with raised caps: single-response 4096 tokens and 300 s; agent 6 requests (4 tool calls, 4096 tokens, 1536 per turn, 600 s); fixtures, sampling and seeds unchanged; budget 60 min, 10 min grace, 150 requests, 100,000 tokens, 3,600 s, 24 tool calls. `pilot-1` stays as run; its results are not overwritten.
+19. The concrete pilot pack and execution limits below are **proposals; item 17 records the owner's approval of the pack as written.
 
 ## 4. Architecture and access boundaries
 
@@ -258,6 +259,8 @@ Use approved window/budget for accounted smoke measurements, then the paired pil
 **Acceptance:** 30 terminal trial records or explicit partial/cancelled status, attributable evidence, subjective review status and demonstrated checkpoint resume. Do not label partial runs complete or inference approval as publication approval.
 
 **Status 2026-11-07:** run 1 executed (see devlog and `evidence/pilot1-run1-results-20261107.txt`): 30 terminal trial records, 40 requests, no observed interference, restoration verified. Acceptance for "attributable evidence" and restoration is met; the pilot is exploratory and confounded by two approved limits (1,024-token cap that includes hidden reasoning; 4-request agent cap), so a pilot-2 with revised limits needs owner approval. Human review of D1/W1 is pending; results are private and nothing is published.
+
+**Pilot-2 (2026-11-07, 20:42-20:57 UTC):** 18 terminal trials (all done), 29 requests, no truncation, no observed interference, restoration verified. Combined with run 1 the pilot now covers all five cases; see `evidence/pilot2-run-results-20261107.txt` and the devlog. Still unreviewed by a human: D1 and W1 judged dimensions. Nothing is published.
 
 ### Phase 6 — publication and reports
 

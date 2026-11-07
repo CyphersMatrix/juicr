@@ -7,11 +7,13 @@ from . import cases
 ORDER_RNG_SEED = 20261107
 
 
-def build_pilot(model, order_seed=ORDER_RNG_SEED, ctx_size=8192, include_agent=True):
+def build_pilot(model, order_seed=None, ctx_size=8192, include_agent=True, pack="pilot-1"):
+    P = cases.PACKS[pack]
+    order_seed = P["order_seed"] if order_seed is None else order_seed
     rng = random.Random(order_seed)
     pairs = []
     for cid, c in cases.CASES.items():
-        if c["kind"] == "agent" and not include_agent:
+        if cid not in P["cases"] or (c["kind"] == "agent" and not include_agent):
             continue
         for seed in cases.SEEDS:
             conds = list(cases.CONDITIONS)
@@ -27,20 +29,20 @@ def build_pilot(model, order_seed=ORDER_RNG_SEED, ctx_size=8192, include_agent=T
             body = {"model": model, "messages": [{"role": "user", "content": c["prompt"]}], "temperature": temp,
                     "seed": p["seed"], **cases.SAMPLING_FROZEN}
             if c["kind"] == "single":
-                body["max_tokens"] = cases.LIMITS_SINGLE["max_tokens"]
-                spec = {"kind": "single", "request": body, "deadline_s": cases.LIMITS_SINGLE["deadline_s"], "max_attempts": 1}
-                cost = {"requests": 1, "tokens": cases.LIMITS_SINGLE["max_tokens"], "seconds": cases.LIMITS_SINGLE["deadline_s"]}
+                L = P["single"]
+                body["max_tokens"] = L["max_tokens"]
+                spec = {"kind": "single", "request": body, "deadline_s": L["deadline_s"], "max_attempts": 1}
+                cost = {"requests": 1, "tokens": L["max_tokens"], "seconds": L["deadline_s"]}
             else:
-                spec = {"kind": "agent", "request": body, "limits": dict(cases.LIMITS_AGENT), "max_attempts": 1,
-                        "admission": c["admission"]}
-                L = cases.LIMITS_AGENT
+                L = P["agent"]
+                spec = {"kind": "agent", "request": body, "limits": dict(L), "max_attempts": 1, "admission": c["admission"]}
                 cost = {"requests": L["max_requests"], "tool_calls": L["max_tool_calls"], "tokens": L["max_tokens"],
                         "seconds": L["deadline_s"]}
             trials.append({"trial_id": tid, "pair_id": p["pair_id"], "case": p["case"], "temperature": temp,
                            "seed": p["seed"], "order_index": idx, "spec": spec, "max_cost": cost})
-    return {"pack_version": cases.PACK_VERSION, "pack_status": cases.PACK_STATUS, "order_rng_seed": order_seed,
+    return {"pack_version": pack, "pack_status": P["status"], "order_rng_seed": order_seed,
             "model": model, "load": {"ctx_size": ctx_size}, "pairs": pairs, "trials": trials,
-            "sampling_frozen": cases.SAMPLING_FROZEN, "limits": {"single": cases.LIMITS_SINGLE, "agent": cases.LIMITS_AGENT}}
+            "sampling_frozen": cases.SAMPLING_FROZEN, "limits": {"single": P["single"], "agent": P["agent"]}}
 
 
 def accounting(pack):

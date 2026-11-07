@@ -73,3 +73,17 @@ CASES = {
     "A1": {"workload": "agent", "title": "recover, read, draft", "prompt": A1_PROMPT, "kind": "agent",
            "admission": "admitted: tool-call compatibility verified 2026-11-07 (evidence/a1-compat-20261107.json)"},
 }
+
+
+# --- pilot-2 (owner-approved 2026-11-07): rerun of C1, W1 and A1 only, with the two limits that confounded run 1 raised.
+# Run 1 showed hidden reasoning consumes the response budget (C1 hit 1,024 tokens 5/6) and that four sequential tool
+# calls plus a final answer need five requests. Fixtures, prompts, sampling and seeds are unchanged.
+LIMITS_SINGLE_2 = {"max_tokens": 4096, "deadline_s": 300}
+LIMITS_AGENT_2 = {"max_requests": 6, "max_tool_calls": 4, "max_tokens": 4096, "deadline_s": 600, "turn_max_tokens": 1536}
+PACKS = {
+    "pilot-1": {"single": LIMITS_SINGLE, "agent": LIMITS_AGENT, "cases": ("C1", "D1", "W1", "E1", "A1"),
+                "status": PACK_STATUS, "order_seed": 20261107, "token_budget": 60000},
+    "pilot-2": {"single": LIMITS_SINGLE_2, "agent": LIMITS_AGENT_2, "cases": ("C1", "W1", "A1"),
+                "status": "approved-by-owner-20261107 (rerun of C1,W1,A1 with raised caps); run-approval-pending",
+                "order_seed": 20261108, "token_budget": 100000},
+}

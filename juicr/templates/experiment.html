@@ -13,7 +13,7 @@
 {% for d, b in e.budgets.items() %}<div class="bud"><div class="bud-t"><span>{{ d }}</span><span><b>{{ b.used|round(1)|string|replace('.0','') }}</b> / {{ b.lim|round(1)|string|replace('.0','') }}{% if b.unknown %} <abbr title="Some usage was unknown, not counted as zero">?</abbr>{% endif %}</span></div>
 <svg class="bar" width="100%" height="8" role="img" aria-label="{{ d }} {{ b.pct_used }} percent used"><rect width="100%" height="8" rx="4" class="bar-bg"/><rect width="{{ b.pct_used }}%" height="8" rx="4" class="bar-used {{ 'over' if b.over }}"/>{% if b.pct_res %}<rect x="{{ b.pct_used }}%" width="{{ b.pct_res }}%" height="8" class="bar-res"/>{% endif %}</svg></div>{% endfor %}</div></section>{% endif %}
 <div class="row acts-row">
-{% if can_load_pilot %}<form method="post" action="/experiments/{{ e.id }}/pilot"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn primary">Queue the 30 pilot trials</button></form>{% endif %}
+{% if can_load_pilot %}<form method="post" action="/experiments/{{ e.id }}/pilot"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn primary">Queue the {{ 18 if e.spec.pack == 'pilot-2' else 30 }} pilot trials</button></form>{% endif %}
 {% if pending_reviews %}<a class="btn ghost" href="/experiments/{{ e.id }}/review">Blind review ({{ pending_reviews }} waiting)</a>{% endif %}
 </div>
 {% if pending_reviews %}<p class="muted note">Tip: review before reading the results below; the review page hides temperature, seed and condition.</p>{% endif %}

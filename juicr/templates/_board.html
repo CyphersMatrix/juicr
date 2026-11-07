@@ -15,7 +15,7 @@
 <label class="field"><span>Window (min)</span><input type="number" name="window_min" value="60" min="1" step="any" required></label>
 <label class="field"><span>Grace (min, or "unlimited")</span><input name="grace" value="10" pattern="unlimited|[0-9.]+"></label>
 <label class="field"><span>Requests</span><input type="number" name="requests" value="150" min="0" step="any"></label>
-<label class="field"><span>Tokens</span><input type="number" name="tokens" value="{{ 60000 if e.spec.pack else 0 }}" min="0" step="any"></label>
+<label class="field"><span>Tokens</span><input type="number" name="tokens" value="{{ {'pilot-1': 60000, 'pilot-2': 100000}.get(e.spec.pack, 0) }}" min="0" step="any"></label>
 <label class="field"><span>Tool calls</span><input type="number" name="tool_calls" value="{{ 24 if e.spec.pack else 0 }}" min="0" step="any"></label>
 <label class="field"><span>Seconds</span><input type="number" name="seconds" value="3600" min="0" step="any"></label>
 <button class="btn primary">Approve window &amp; budget</button></form>

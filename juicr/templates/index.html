@@ -16,7 +16,7 @@
 <form hx-post="/experiments" hx-target="#board" hx-swap="innerHTML" class="pop-body">
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <label class="field"><span>Experiment id</span><input name="exp_id" pattern="[A-Za-z0-9_\-]+" maxlength="40" required placeholder="gemma-e4b-pilot"></label>
-<label class="field"><span>Type</span><select name="kind"><option value="pilot">Pilot pack (30 trials, approved)</option><option value="custom">Custom (empty)</option></select></label>
+<label class="field"><span>Type</span><select name="kind"><option value="pilot">Pilot-1 (all 5 cases, 30 trials)</option><option value="pilot2">Pilot-2 (rerun C1, W1, A1: 18 trials, raised caps)</option><option value="custom">Custom (empty)</option></select></label>
 <button class="btn primary wide">Create</button></form></details></div></header>
 <div id="board">{% include "_board.html" %}</div>
 </main></div>{% endblock %}

@@ -193,8 +193,10 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
         p, sess = need_owner(request)
         return templates.TemplateResponse(request, "_live.html", page_ctx(request, sess))
 
-    def pilot_spec():
-        return {"pack": cases.PACK_VERSION, "model": "Gemma-4-E4B-it-GGUF", "load": {"ctx_size": 8192}}
+    def pilot_spec(pack="pilot-1"):
+        if pack not in cases.PACKS:
+            raise PolicyError("unknown pack")
+        return {"pack": pack, "model": "Gemma-4-E4B-it-GGUF", "load": {"ctx_size": 8192}}
 
     def rerender(request, sess):
         return templates.TemplateResponse(request, "_board.html", page_ctx(request, sess))
@@ -211,7 +213,7 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
         if not exp_id.replace("-", "").replace("_", "").isalnum() or len(exp_id) > 40 or exp_id == "live":
             return fail(request, sess, "Experiment id: letters, digits, - and _ only (max 40).")
         try:
-            controller.create_experiment(exp_id, p, pilot_spec() if kind == "pilot" else None)
+            controller.create_experiment(exp_id, p, pilot_spec({"pilot": "pilot-1", "pilot2": "pilot-2"}[kind]) if kind in ("pilot", "pilot2") else None)
         except Exception as e:  # duplicate id etc.
             return fail(request, sess, f"Could not create: {type(e).__name__}")
         return rerender(request, sess)
@@ -263,7 +265,7 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
             raise HTTPException(404, "no such experiment")
         rows = orch.trial_rows(exp_id) if orch else []
         ctx = {"e": e, "rows": rows, "summary": orch.summary(rows) if orch else [], "csrf": sess["c"],
-               "can_load_pilot": bool(orch) and e["spec"].get("pack") == cases.PACK_VERSION and e["state"] == "queued" and not e["trials"],
+               "can_load_pilot": bool(orch) and e["spec"].get("pack") in cases.PACKS and e["state"] == "queued" and not e["trials"],
                "pending_reviews": len(orch.pending_review(exp_id)) if orch else 0}
         ctx.update(extra or {})
         return ctx
@@ -280,7 +282,7 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
         p, sess = need_owner(request)
         check_csrf(request, sess, csrf)
         spec = controller.experiment_spec(exp_id)
-        if not orch or not spec or spec.get("pack") != cases.PACK_VERSION:
+        if not orch or not spec or spec.get("pack") not in cases.PACKS:
             raise HTTPException(400, "not a pilot experiment")
         try:
             controller.admit_many(p, exp_id, orch.pilot_admission(spec, exp_id))
@@ -324,9 +326,9 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
          "inputSchema": {"type": "object", "properties": {}}},
         {"name": "get_experiment", "description": "Experiment detail: budgets, trial states, per case/temperature summary.",
          "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
-        {"name": "create_pilot_experiment", "description": "Create an experiment holding the approved pilot pack. It runs nothing until the owner opens a window and approves a budget.",
-         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
-        {"name": "load_pilot", "description": "Queue the 30 pilot trials. Only works inside an owner-approved window; budgets still apply.",
+        {"name": "create_pilot_experiment", "description": "Create an experiment holding an approved pilot pack (pilot-1: all five cases; pilot-2: rerun of C1, W1, A1 with raised caps). It runs nothing until the owner opens a window and approves a budget.",
+         "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "pack": {"type": "string", "enum": ["pilot-1", "pilot-2"]}}, "required": ["id"]}},
+        {"name": "load_pilot", "description": "Queue the experiment's pilot trials (30 for pilot-1, 18 for pilot-2). Only works inside an owner-approved window; budgets still apply.",
          "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
         {"name": "cancel_experiment", "description": "Cancel an experiment; active work is stopped where supported.",
          "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}},
@@ -344,14 +346,16 @@ def create_app(controller, session_secret, api_tokens=None, clock=time.time, orc
         if name == "create_pilot_experiment":
             if not eid.replace("-", "").replace("_", "").isalnum() or len(eid) > 40 or eid == "live":
                 raise PolicyError("id: letters, digits, - and _ only (max 40)")
-            controller.create_experiment(eid, p, pilot_spec())
-            return {"created": eid, "state": "awaiting_approval", "note": "owner must open a window and approve a budget"}
+            pk = str(a.get("pack", "pilot-1"))
+            controller.create_experiment(eid, p, pilot_spec(pk))
+            return {"created": eid, "pack": pk, "state": "awaiting_approval", "note": "owner must open a window and approve a budget"}
         if name == "load_pilot":
             spec = controller.experiment_spec(eid)
-            if not orch or not spec or spec.get("pack") != cases.PACK_VERSION:
+            if not orch or not spec or spec.get("pack") not in cases.PACKS:
                 raise PolicyError("not a pilot experiment")
-            controller.admit_many(p, eid, orch.pilot_admission(spec, eid))
-            return {"queued": 30}
+            adm = orch.pilot_admission(spec, eid)
+            controller.admit_many(p, eid, adm)
+            return {"queued": len(adm), "pack": spec["pack"]}
         if name == "cancel_experiment":
             controller.cancel(p, eid); return {"cancelling": eid}
         if name == "check_protected":

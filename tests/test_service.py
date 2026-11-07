@@ -32,8 +32,8 @@ class Base(unittest.TestCase):
         if self.fl: self.fl.close()
         self.d.cleanup()
 
-    def pilot(self, eid="p1", budgets=None, load=True):
-        spec = {"pack": cases.PACK_VERSION, "model": "Gemma-4-E4B-it-GGUF", "load": {"ctx_size": 8192}}
+    def pilot(self, eid="p1", budgets=None, load=True, pack="pilot-1"):
+        spec = {"pack": pack, "model": "Gemma-4-E4B-it-GGUF", "load": {"ctx_size": 8192}}
         self.ctl.create_experiment(eid, self.mcp, spec)
         n = time.time()
         self.ctl.approve_window(self.owner, eid, n - 1, n + 3600, 600, budgets or BUDGETS)
@@ -117,6 +117,29 @@ class TestSimEndToEnd(Base):
         rows = self.o.trial_rows("p1")
         self.assertLess(sum(1 for r in rows if r["state"] == "done"), 30)
         self.assertIn(self.ctl.state("p1"), ("partial", "cancelled"))
+
+
+class TestPilot2RealMode(Base):
+    mode = "real"
+
+    def test_pilot2_runs_with_raised_caps_and_sequential_tools_finish(self):
+        self.fl.state.sequential_tools = True                 # the real model calls one tool per turn
+        self.pilot(budgets={"requests": 150, "tokens": 100000, "seconds": 3600, "tool_calls": 24}, pack="pilot-2")
+        self.run_all(limit=150)
+        rows = self.o.trial_rows("p1")
+        self.assertEqual((len(rows), self.ctl.state("p1")), (18, "completed"))
+        a1 = [r for r in rows if r["case"] == "A1"]
+        self.assertTrue(all(r["state"] == "done" and r["class"]["task"] == "task_success" for r in a1), [r["class"] for r in a1])
+        caps = {b.get("max_tokens") for b in self.fl.state.chat_requests}
+        self.assertEqual(caps, {4096, 1536})                  # single-response cap and the agent per-turn cap, nothing else
+        self.assertEqual({r["case"] for r in rows}, {"C1", "W1", "A1"})
+        self.assertLessEqual(self.ctl.budget("p1")["requests"]["used"], 48)
+
+    def test_same_sequential_tools_fail_under_pilot1_caps(self):
+        self.fl.state.sequential_tools = True
+        self.pilot(pack="pilot-1"); self.run_all(limit=150)
+        a1 = [r for r in self.o.trial_rows("p1") if r["case"] == "A1"]
+        self.assertTrue(all(r["state"] == "failed" and r["class"]["note"] == "limit:limit_requests" for r in a1))
 
 
 class TestRescore(Base):

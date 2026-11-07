@@ -125,11 +125,12 @@ class Orchestrator:
         self._segment(exp, config)["trials"].append(tid)
         base = dict(meta["spec"]["request"])
         started, n, reasons = self.clock(), [0], []
+        turn_cap = (meta["spec"].get("limits") or {}).get("turn_max_tokens", 512)   # per-turn generation cap from the pack
 
         def step(messages, tools):
             n[0] += 1
             self.runner.ensure_config(config)               # re-verify before EVERY request
-            j = self.client.chat(dict(base, messages=messages, tools=tools, max_tokens=512))
+            j = self.client.chat(dict(base, messages=messages, tools=tools, max_tokens=turn_cap))
             m = j["choices"][0]["message"]
             reasons.append(j["choices"][0].get("finish_reason"))
             return {"content": m.get("content") or "", "tokens": (j.get("usage") or {}).get("completion_tokens") or 0,
@@ -203,7 +204,8 @@ class Orchestrator:
     def pilot_admission(self, spec, exp_id):
         """Trials for the approved pilot pack as controller admit_many tuples. Trial ids are namespaced by
         experiment (`<experiment>__<trial>`) because trial ids and evidence files are global."""
-        pack = pilot.build_pilot(spec["model"], ctx_size=spec.get("load", {}).get("ctx_size", 8192))
+        pack = pilot.build_pilot(spec["model"], ctx_size=spec.get("load", {}).get("ctx_size", 8192),
+                                 pack=spec.get("pack", "pilot-1"))
         return [(f"{exp_id}__{t['trial_id']}", t["max_cost"], {"case": t["case"], "pair_id": t["pair_id"], "temperature": t["temperature"],
                                                   "seed": t["seed"], "order_index": t["order_index"], "spec": t["spec"]})
                 for t in pack["trials"]]

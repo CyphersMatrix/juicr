@@ -230,6 +230,40 @@ class TestPilotPack(unittest.TestCase):
         self.assertIn("A1-admitted-compat-verified", cases.PACK_STATUS)
 
 
+class TestPilot2(unittest.TestCase):
+    def test_pack_two_is_the_approved_rerun_of_c1_w1_a1_only(self):
+        p = pilot.build_pilot("M", pack="pilot-2"); a = pilot.accounting(p)
+        self.assertEqual({t["case"] for t in p["trials"]}, {"C1", "W1", "A1"})
+        self.assertEqual((a["top_level"], a["single_requests"], a["agent_requests_max"], a["measured_requests_max"]), (18, 12, 36, 48))
+        for t in p["trials"]:
+            b = t["spec"]["request"]
+            self.assertEqual((b["top_p"], b["top_k"], b["seed"]), (0.95, 64, t["seed"]))   # sampling unchanged
+            if t["spec"]["kind"] == "single":
+                self.assertEqual((b["max_tokens"], t["spec"]["deadline_s"]), (4096, 300))
+            else:
+                self.assertEqual(t["spec"]["limits"], {"max_requests": 6, "max_tool_calls": 4, "max_tokens": 4096,
+                                                         "deadline_s": 600, "turn_max_tokens": 1536})
+        self.assertEqual(len(p["pairs"]), 9); self.assertEqual(p["order_rng_seed"], 20261108)
+
+    def test_pack_one_is_unchanged_and_reproducible(self):
+        a = pilot.build_pilot("M"); b = pilot.build_pilot("M", pack="pilot-1")
+        self.assertEqual([t["trial_id"] for t in a["trials"]], [t["trial_id"] for t in b["trials"]])
+        self.assertEqual(a["limits"]["single"], {"max_tokens": 1024, "deadline_s": 180})
+        self.assertEqual(a["limits"]["agent"]["max_requests"], 4); self.assertEqual(len(a["trials"]), 30)
+
+    def test_four_requests_cannot_finish_sequential_tool_use_but_six_can(self):
+        steps = [{"content": "", "tool_calls": [refs.call("search_documents", {"query": "q"})], "tokens": 10},
+                 {"content": "", "tool_calls": [refs.call("search_documents", {"query": "q2"})], "tokens": 10},
+                 {"content": "", "tool_calls": [refs.call("read_document", {"id": "A"})], "tokens": 10},
+                 {"content": "", "tool_calls": [refs.call("read_document", {"id": "B"})], "tokens": 10},
+                 {"content": "Cedar launches May 2 [B] with a $40,000 budget [A]. Not sent.", "tool_calls": [], "tokens": 30}]
+        old = agent.run_agent(refs.scripted(list(steps)), limits=cases.LIMITS_AGENT)
+        self.assertEqual(old["outcome"], "limit_requests")                      # the run-1 flaw, reproduced
+        new = agent.run_agent(refs.scripted(list(steps)), limits=cases.LIMITS_AGENT_2)
+        self.assertEqual((new["outcome"], new["requests"], new["tool_calls"]), ("finished", 5, 4))
+        self.assertTrue(all(oracles.evaluate_a1(new["trace"], new["final_text"])["checks"].values()))
+
+
 class TestReviewAndClassification(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.TemporaryDirectory(); self.ev = EvidenceStore(os.path.join(self.d.name, "ev")); self.es = EvalStore(self.ev)

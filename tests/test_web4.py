@@ -108,6 +108,21 @@ class TestPilotUi(Base):
         self.assertEqual(self.c.post("/experiments/p1/review", data=form).status_code, 400)                 # already rated
         self.assertEqual(TestClient(self.app, follow_redirects=False).get("/experiments/p1/review").status_code, 303)
 
+    def test_pilot2_via_ui_and_mcp(self):
+        self.login()
+        self.c.post("/experiments", data={"exp_id": "q2", "kind": "pilot2"}, headers=self.H)
+        self.assertEqual(self.ctl.experiment_spec("q2")["pack"], "pilot-2")
+        self.assertIn("100000", self.c.get("/").text)                                  # higher token default for pilot-2
+        self.c.post("/experiments/q2/approve", data={"window_min": 60, "grace": "10", "requests": 150, "tokens": 100000,
+                                                       "seconds": 3600, "tool_calls": 24}, headers=self.H)
+        page = self.c.get("/experiments/q2").text
+        self.assertIn("Queue the 18 pilot trials", page)
+        self.assertEqual(self.c.post("/experiments/q2/pilot", data={"csrf": self.csrf}).status_code, 303)
+        self.assertEqual(len(self.ctl.list_trials("q2")), 18)
+        err, txt = self.tool("create_pilot_experiment", id="m2", pack="pilot-2")
+        self.assertFalse(err); self.assertEqual(self.ctl.experiment_spec("m2")["pack"], "pilot-2")
+        err, txt = self.tool("create_pilot_experiment", id="m3", pack="pilot-9"); self.assertTrue(err)
+
     def test_reserved_and_bad_ids(self):
         self.login()
         r = self.c.post("/experiments", data={"exp_id": "live", "kind": "custom"}, headers=self.H)
