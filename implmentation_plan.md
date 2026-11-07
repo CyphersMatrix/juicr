@@ -232,6 +232,8 @@ Implement API adapter, capability evidence, configuration application/verificati
 
 **Acceptance:** accepted-but-unverified settings stay distinct; failed attempts survive retries; resume does not duplicate completed trials or reset budgets. Restoration failure warns/continues and the next experiment independently establishes its required configuration.
 
+**Status 2026-11-07:** implemented and tested against a fake Lemonade (see devlog). Real inference through the runner has not been exercised; that belongs to an owner-approved window (Phase 5).
+
 ### Phase 3 — pilot fixtures and evaluators
 
 Implement C1/D1/W1/E1/A1, independent oracles, simulated tools, human review and trace capture.

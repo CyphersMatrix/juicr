@@ -290,6 +290,9 @@ class Controller:
             for dim, amt in cost.items():
                 c.execute("UPDATE budget SET reserved=reserved-? WHERE experiment_id=? AND dim=?", (amt, t["experiment_id"], dim))
             for dim, val in actual.items():
+                if c.execute("SELECT 1 FROM budget WHERE experiment_id=? AND dim=?", (t["experiment_id"], dim)).fetchone() is None:
+                    self._event(c, t["experiment_id"], "unbudgeted_usage", f"{dim}={val}")
+                    continue
                 if val is None:
                     c.execute("UPDATE budget SET unknown=1 WHERE experiment_id=? AND dim=?", (t["experiment_id"], dim))
                     continue
@@ -458,6 +461,13 @@ class Controller:
         r = c.execute("SELECT state FROM experiment WHERE id=?", (exp_id,)).fetchone()
         c.close()
         return r["state"] if r else None
+
+    def is_cancelling_trial(self, trial_id):
+        c = self._conn()
+        r = c.execute("SELECT e.state FROM trial t JOIN experiment e ON e.id=t.experiment_id WHERE t.id=?",
+                      (trial_id,)).fetchone()
+        c.close()
+        return bool(r) and r["state"] in ("cancelling", "cancelled")
 
     def trial_state(self, trial_id):
         c = self._conn()

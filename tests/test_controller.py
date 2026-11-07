@@ -205,6 +205,14 @@ class TestLifecycle(Base):
         self.assertEqual(self.c.state("e1"), "partial")
         self.assertEqual(self.c.budget("e1")["seconds"]["used"], 7)
 
+    def test_usage_in_unapproved_dimension_is_recorded_not_fatal(self):
+        self.new_exp(budgets={"requests": 5})
+        self.c.admit(self.mcp, "e1", "a", {"requests": 1}); self.c.dispatch("a")
+        self.clk.t = 1010
+        self.c.finish_trial("a", "done", {"requests": 1, "tokens": 50}, started=1000)   # seconds+tokens unbudgeted
+        self.assertEqual(self.c.state("e1"), "completed")
+        self.assertNotIn("seconds", self.c.budget("e1"))
+
     def test_all_done_completes(self):
         self.new_exp()
         self.c.admit(self.mcp, "e1", "a", {"requests": 1}); self.c.dispatch("a")
