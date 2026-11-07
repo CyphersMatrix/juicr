@@ -190,3 +190,70 @@ class TestWindowAndGrace(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLifecycle(Base):
+    def test_experiment_completes_and_partial(self):
+        self.new_exp(budgets={"requests": 5, "seconds": 100})
+        for t in "ab":
+            self.c.admit(self.mcp, "e1", t, {"requests": 1})
+            self.c.dispatch(t)
+        self.c.finish_trial("a", "done", {"requests": 1}, started=1000)
+        self.assertEqual(self.c.state("e1"), "running")
+        self.clk.t = 1007
+        self.c.finish_trial("b", "failed", {"requests": 1}, started=1000)
+        self.assertEqual(self.c.state("e1"), "partial")
+        self.assertEqual(self.c.budget("e1")["seconds"]["used"], 7)
+
+    def test_all_done_completes(self):
+        self.new_exp()
+        self.c.admit(self.mcp, "e1", "a", {"requests": 1}); self.c.dispatch("a")
+        self.c.finish_trial("a", "done", {"requests": 1})
+        self.assertEqual(self.c.state("e1"), "completed")
+
+    def test_cancelled_experiment_reaches_cancelled(self):
+        self.new_exp()
+        self.c.admit(self.mcp, "e1", "a", {"requests": 1}); self.c.dispatch("a")
+        self.c.cancel(self.user, "e1")
+        self.c.finish_trial("a", "cancelled", {"requests": None})
+        self.assertEqual(self.c.state("e1"), "cancelled")
+        self.assertEqual(self.c.budget("e1")["requests"]["unknown"], 1)
+
+    def test_restart_reconciliation_marks_unknown_not_zero_and_no_resume(self):
+        self.new_exp(budgets={"requests": 3})
+        for t in "abc":
+            self.c.admit(self.mcp, "e1", t, {"requests": 1})
+        self.c.dispatch("a")
+        be2 = FakeBackend()
+        c2 = Controller(self.path, be2, self.clk)
+        self.assertEqual(c2.reconcile_after_restart(), 1)
+        b = c2.budget("e1")["requests"]
+        self.assertEqual((b["reserved"], b["used"], b["unknown"]), (0, 0, 1))
+        self.assertEqual(c2.trial_state("a"), "interrupted")
+        self.assertEqual(be2.started, [])                       # nothing resumed automatically
+        self.assertEqual(c2.reconcile_after_restart(), 0)       # idempotent
+
+    def test_tick_respects_concurrency_and_order(self):
+        self.new_exp(budgets={"requests": 5})
+        for t in "abc":
+            self.c.admit(self.mcp, "e1", t, {"requests": 1}); self.clk.t += 1
+        self.assertEqual(self.c.tick(max_active=1), ["a"])
+        self.assertEqual(self.c.tick(max_active=1), [])         # one active already
+        self.c.finish_trial("a", "done", {"requests": 1})
+        self.assertEqual(self.c.tick(max_active=2), ["b", "c"])
+
+    def test_tick_stops_on_exhaustion(self):
+        self.new_exp(budgets={"requests": 1})
+        for t in "ab":
+            self.c.admit(self.mcp, "e1", t, {"requests": 1})
+        self.assertEqual(self.c.tick(max_active=5), ["a"])
+        self.assertEqual(self.c.tick(max_active=5), [])
+        self.assertEqual(self.c.trial_state("b"), "cancelled")
+
+    def test_sweep_cancels_queued_after_finite_grace(self):
+        self.new_exp(end=1600, grace=100)
+        self.c.admit(self.mcp, "e1", "a", {"requests": 1})
+        self.clk.t = 1701
+        self.c.sweep_expired()
+        self.assertEqual(self.c.trial_state("a"), "cancelled")
+        self.assertEqual(self.c.state("e1"), "partial")

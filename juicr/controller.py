@@ -302,6 +302,123 @@ class Controller:
         finally:
             c.close()
 
+    # -- completion, restart reconciliation, scheduler ----------------------
+    def finish_trial(self, trial_id, outcome, actual, started=None):
+        """Settle a trial and set its terminal state. outcome: done|failed|timeout|cancelled.
+        Wall-clock seconds are charged from `started` unless the caller supplies them."""
+        if outcome not in ("done", "failed", "timeout", "cancelled"):
+            raise PolicyError("bad outcome")
+        actual = dict(actual)
+        if started is not None and "seconds" not in actual:
+            actual["seconds"] = max(0.0, self.clock() - started)
+        self.settle(trial_id, actual)
+        c = self._tx()
+        try:
+            t = c.execute("SELECT experiment_id FROM trial WHERE id=?", (trial_id,)).fetchone()
+            c.execute("UPDATE trial SET state=? WHERE id=?", (outcome, trial_id))
+            self._maybe_complete(c, t["experiment_id"])
+            c.execute("COMMIT")
+        except BaseException:
+            c.execute("ROLLBACK"); raise
+        finally:
+            c.close()
+
+    def _maybe_complete(self, c, exp_id):
+        """Move an experiment to a terminal state once no trial is queued or running."""
+        left = c.execute("SELECT COUNT(*) n FROM trial WHERE experiment_id=? AND state IN('queued','running')",
+                         (exp_id,)).fetchone()["n"]
+        st = c.execute("SELECT state FROM experiment WHERE id=?", (exp_id,)).fetchone()["state"]
+        if left or st in ("completed", "partial", "cancelled", "failed", "awaiting_approval"):
+            return
+        bad = c.execute("SELECT COUNT(*) n FROM trial WHERE experiment_id=? AND state!='done'", (exp_id,)).fetchone()["n"]
+        total = c.execute("SELECT COUNT(*) n FROM trial WHERE experiment_id=?", (exp_id,)).fetchone()["n"]
+        if st == "cancelling":
+            new = "cancelled"
+        elif total and not bad:
+            new = "completed"
+        else:
+            new = "partial"
+        c.execute("UPDATE experiment SET state=? WHERE id=?", (new, exp_id))
+        self._event(c, exp_id, "terminal", new)
+
+    def reconcile_after_restart(self):
+        """Trials that were running when the process died have unknown usage: settle their
+        reservations as unknown (never zero), mark them interrupted, and re-evaluate the
+        experiment. Does not resume work or authorize new inference."""
+        c = self._tx()
+        try:
+            rows = c.execute("SELECT * FROM reservation WHERE open=1").fetchall()
+            n = 0
+            for r in rows:
+                cost = json.loads(r["cost"])
+                for dim, amt in cost.items():
+                    c.execute("UPDATE budget SET reserved=reserved-?,unknown=1 WHERE experiment_id=? AND dim=?",
+                              (amt, r["experiment_id"], dim))
+                c.execute("UPDATE reservation SET open=0 WHERE id=?", (r["id"],))
+                c.execute("UPDATE trial SET state='interrupted' WHERE id=?", (r["trial_id"],))
+                self._event(c, r["experiment_id"], "interrupted", r["trial_id"])
+                n += 1
+            for e in c.execute("SELECT id FROM experiment WHERE state IN('queued','running','cancelling')").fetchall():
+                self._maybe_complete(c, e["id"])
+            c.execute("COMMIT")
+            return n
+        except BaseException:
+            c.execute("ROLLBACK"); raise
+        finally:
+            c.close()
+
+    def tick(self, max_active=1):
+        """Dispatch queued trials in admission order while fewer than max_active are running.
+        Returns the list of trial ids dispatched. Policy refusals leave the trial queued or
+        cancelled by the rules in dispatch(); they never raise out of the scheduler."""
+        dispatched = []
+        c = self._conn()
+        active = c.execute("SELECT COUNT(*) n FROM trial WHERE state='running'").fetchone()["n"]
+        queued = [r["id"] for r in c.execute(
+            "SELECT t.id FROM trial t JOIN experiment e ON e.id=t.experiment_id "
+            "WHERE t.state='queued' AND e.state IN('queued','running') ORDER BY t.admitted, t.rowid")]
+        c.close()
+        for tid in queued:
+            if active >= max_active:
+                break
+            try:
+                self.dispatch(tid)
+                dispatched.append(tid); active += 1
+            except PolicyError:
+                continue
+        return dispatched
+
+    def sweep_expired(self):
+        """Cancel queued trials of experiments whose grace has ended."""
+        now = self.clock()
+        c = self._tx()
+        try:
+            for e in c.execute("SELECT * FROM experiment WHERE state IN('queued','running') "
+                               "AND window_end IS NOT NULL AND grace_s IS NOT NULL").fetchall():
+                if now > e["window_end"] + e["grace_s"]:
+                    c.execute("UPDATE trial SET state='cancelled' WHERE experiment_id=? AND state='queued'", (e["id"],))
+                    self._event(c, e["id"], "grace_expired", "")
+                    self._maybe_complete(c, e["id"])
+            c.execute("COMMIT")
+        except BaseException:
+            c.execute("ROLLBACK"); raise
+        finally:
+            c.close()
+
+    def snapshot(self):
+        """Read-only view for UIs: experiments, budgets, trial counts."""
+        c = self._conn()
+        out = []
+        for e in c.execute("SELECT * FROM experiment ORDER BY created DESC"):
+            d = dict(e)
+            d["budgets"] = {r["dim"]: dict(r) for r in c.execute("SELECT * FROM budget WHERE experiment_id=?", (e["id"],))}
+            d["trials"] = {r["state"]: r["n"] for r in c.execute(
+                "SELECT state, COUNT(*) n FROM trial WHERE experiment_id=? GROUP BY state", (e["id"],))}
+            d["approvals"] = [r["kind"] for r in c.execute("SELECT kind FROM approval WHERE experiment_id=?", (e["id"],))]
+            out.append(d)
+        c.close()
+        return out
+
     # -- cancellation -----------------------------------------------------
     def cancel(self, caller, exp_id):
         """Cancellation overrides grace. Propagates to the backend where supported."""
