@@ -238,3 +238,7 @@
 ## 2026-11-07 — Step 1 test cards
 
 - Test cards now show saved date, last run, models tried and a source snippet so similar tests can be told apart (expert mode hides the source line). Delete test moved from the card into the editor (Edit test -> Delete this test); the confirmation dialog and undo are unchanged.
+
+## 2026-11-07 — Coding task kind
+
+- Owner choices: HTML shown as code only (no preview, preserving the no-execution contract), file type is a per-test frozen setting, parse-only validation for Python/JSON/HTML (YAML unchecked), 4096 default cap. Implemented in `juicr_local.py` (`FILE_TYPES`, `extract_code`, `check_code`, `build_file`), UI code panel, CLI flags, `tests/test_coding.py` (9 tests incl. 'parsing never executes'). Browser-verified with Demo: create, run, code panel, validation line, Copy/Download. Leftover demo test 'Coding demo: JSON config' remains in the preview data dir.

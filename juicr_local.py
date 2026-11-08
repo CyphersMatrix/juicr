@@ -2,17 +2,20 @@
 import argparse
 import base64
 from contextlib import contextmanager
+import ast
 import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import random
+import re
 import secrets
 import sqlite3
 import sys
 import threading
 import time
+from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
@@ -23,8 +26,109 @@ ROOT = Path(__file__).resolve().parent
 FIELDS = {'temperature': (0, 2), 'top_p': (0, 1), 'top_k': (0, 100000),
           'min_p': (0, 1), 'repeat_penalty': (0, 2),
           'presence_penalty': (-2, 2), 'frequency_penalty': (-2, 2)}
-TEST_FIELDS = ('content', 'context', 'instructions', 'criteria', 'task', 'repeats', 'seed', 'timeout')
-PARAM_FIELDS = ('settings', 'writing_output_tokens', 'extraction_output_tokens')
+TASKS = ('writing', 'extraction', 'coding')
+TEST_FIELDS = ('content', 'context', 'instructions', 'criteria', 'task', 'file_type', 'repeats', 'seed', 'timeout')
+PARAM_FIELDS = ('settings', 'writing_output_tokens', 'extraction_output_tokens', 'coding_output_tokens')
+CODING_DEFAULT_TOKENS = 4096
+# file_type -> (label, language, filename, description used in the instruction sent to the model)
+FILE_TYPES = {
+    'python_snippet': ('Python snippet', 'python', 'snippet.py', 'a short Python code snippet (a function or a few related statements, not a full program)'),
+    'python_script': ('Python script', 'python', 'script.py', 'one complete, runnable Python script that uses only the standard library unless the task says otherwise'),
+    'html_app': ('HTML single-file app', 'html', 'app.html', 'one self-contained HTML file with all CSS and JavaScript inline and no external resources'),
+    'json': ('JSON configuration', 'json', 'config.json', 'one valid JSON configuration file'),
+    'yaml': ('YAML configuration', 'yaml', 'config.yaml', 'one valid YAML configuration file'),
+}
+FENCE_ALIASES = {'python': {'python', 'py', 'python3'}, 'html': {'html', 'htm'}, 'json': {'json', 'jsonc'}, 'yaml': {'yaml', 'yml'}}
+
+
+def coding_directive(file_type):
+    label, language, _, what = FILE_TYPES[file_type]
+    return (f'Produce {what}. Reply with only that file inside a single fenced code block tagged ```{language}. '
+            'Write no explanation or other text outside the code block.')
+
+
+def extract_code(text, language):
+    """Pull the one file out of a model reply. Never executes anything."""
+    blocks = [(m.group(1).lower(), m.group(2)) for m in re.finditer(r'```([\w+-]*)[^\n]*\n(.*?)```', text, re.S)]
+    if blocks:
+        wanted = FENCE_ALIASES[language]
+        chosen = next((b for b in blocks if b[0] in wanted), blocks[0])
+        return {'text': chosen[1].strip('\n'), 'source': 'fenced code block', 'extra_blocks': len(blocks) - 1}
+    opened = re.search(r'```[\w+-]*[^\n]*\n', text)
+    if opened:  # reply was cut off before the closing fence
+        return {'text': text[opened.end():].strip('\n'), 'source': 'unclosed code fence (reply may be truncated)', 'extra_blocks': 0}
+    return {'text': text.strip('\n'), 'source': 'whole reply (no code fence)', 'extra_blocks': 0}
+
+
+class _TagCheck(HTMLParser):
+    VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'}
+    OPTIONAL = {'p', 'li', 'dt', 'dd', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot', 'option', 'optgroup', 'colgroup', 'html', 'head', 'body'}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack, self.problems, self.has_html = [], [], False
+
+    def handle_starttag(self, tag, attrs):
+        self.has_html = True
+        if tag not in self.VOID:
+            self.stack.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        self.has_html = True
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID:
+            return
+        if tag in self.stack:
+            while self.stack and self.stack[-1] != tag:
+                skipped = self.stack.pop()
+                if skipped not in self.OPTIONAL:
+                    self.problems.append(f'<{skipped}> not closed')
+            self.stack.pop()
+        else:
+            self.problems.append(f'stray </{tag}>')
+
+
+def check_code(text, language):
+    """Parse-only check; informational, not a quality score. Generated code is never run."""
+    if not text.strip():
+        return {'status': 'invalid', 'detail': 'The file is empty.'}
+    try:
+        if language == 'python':
+            ast.parse(text)
+            return {'status': 'valid', 'detail': 'Python syntax parses (the code was not run).'}
+        if language == 'json':
+            json.loads(text)
+            return {'status': 'valid', 'detail': 'Valid JSON.'}
+        if language == 'html':
+            parser = _TagCheck()
+            parser.feed(text)
+            parser.close()
+            problems = parser.problems + [f'<{t}> not closed' for t in parser.stack if t not in parser.OPTIONAL]
+            if not parser.has_html:
+                return {'status': 'invalid', 'detail': 'No HTML tags found.'}
+            if problems:
+                return {'status': 'invalid', 'detail': 'Tag structure problems: ' + '; '.join(problems[:5])}
+            return {'status': 'valid', 'detail': 'HTML tags are balanced (the page was not rendered or run).'}
+    except SyntaxError as e:
+        return {'status': 'invalid', 'detail': f'Python syntax error on line {e.lineno}: {e.msg}'}
+    except json.JSONDecodeError as e:
+        return {'status': 'invalid', 'detail': f'JSON error at line {e.lineno}, column {e.colno}: {e.msg}'}
+    except Exception:
+        return {'status': 'invalid', 'detail': 'The file could not be parsed.'}
+    return {'status': 'not_checked', 'detail': 'Not checked: Python has no built-in YAML parser and JUICR uses only the standard library.'}
+
+
+def build_file(text, file_type):
+    label, language, filename, _ = FILE_TYPES[file_type]
+    found = extract_code(text or '', language)
+    return {'file_type': file_type, 'label': label, 'language': language, 'filename': filename,
+            'text': found['text'], 'source': found['source'], 'extra_blocks': found['extra_blocks'],
+            'validation': check_code(found['text'], language)}
+
+
+def output_cap(d, p):
+    return p.get(d['task'] + '_output_tokens', CODING_DEFAULT_TOKENS)
 
 
 def model_identity(profile):
@@ -61,8 +165,13 @@ def validate(draft):
             raise ValueError(f'{key} is required')
         if len(d[key]) > 100000:
             raise ValueError(f'{key} is too long')
-    if d.get('task') not in ('writing', 'extraction'):
-        raise ValueError('Choose writing or extraction')
+    if d.get('task') not in TASKS:
+        raise ValueError('Choose writing, extraction or coding')
+    if d['task'] == 'coding':
+        if d.get('file_type') not in FILE_TYPES:
+            raise ValueError('Choose the kind of file the coding test should produce')
+    else:
+        d.pop('file_type', None)
     d['repeats'] = number(d.get('repeats'), 'repeats', 1, 20, True)
     d['seed'] = number(d.get('seed'), 'seed', 0, 2147483647, True)
     d['timeout'] = number(d.get('timeout'), 'timeout', 5, 600, True)
@@ -78,8 +187,8 @@ def validate(draft):
             raise ValueError('Unknown sampling setting')
         for k, v in p['settings'].items():
             number(v, k, *FIELDS[k], integer=k == 'top_k')
-        for k in ('writing_output_tokens', 'extraction_output_tokens'):
-            p[k] = number(p.get(k), k, 1, 32768, True)
+        for k in ('writing_output_tokens', 'extraction_output_tokens', 'coding_output_tokens'):
+            p[k] = number(p.get(k, CODING_DEFAULT_TOKENS if k == 'coding_output_tokens' else None), k, 1, 32768, True)
         if p['provider'] == 'lemonade':
             u = urlsplit(p.get('url', ''))
             if u.scheme not in ('http', 'https') or not u.hostname or u.username or u.password or u.query or u.fragment:
@@ -96,10 +205,12 @@ def request_body(d, p, seed):
     body = {'model': p['model'], 'messages': [
         {'role': 'system', 'content': d['instructions']},
         {'role': 'user', 'content': d['content']}],
-        'seed': seed, 'max_tokens': p[d['task'] + '_output_tokens'], 'stream': False,
+        'seed': seed, 'max_tokens': output_cap(d, p), 'stream': False,
         **p['settings']}
     if d.get('criteria'):
         body['messages'][0]['content'] += '\n\nRequirements:\n' + d['criteria']
+    if d['task'] == 'coding':
+        body['messages'][0]['content'] += '\n\n' + coding_directive(d['file_type'])
     if d.get('context'):
         body['messages'].insert(1, {'role': 'user', 'content': 'Context:\n' + d['context']})
     if p['provider'] == 'openrouter':
@@ -123,7 +234,13 @@ class NoRedirect(HTTPRedirectHandler):
 def infer(d, p, seed, key=None):
     body = request_body(d, p, seed)
     if p['provider'] == 'demo':
-        return {'choices': [{'message': {'content': '[Simulated response — no inference]\n\n' + d['content'],
+        reply = '[Simulated response — no inference]\n\n' + d['content']
+        if d['task'] == 'coding':
+            language = FILE_TYPES[d['file_type']][1]
+            sample = {'python': 'print("Simulated example: no model was used")', 'json': '{"simulated": true}',
+                      'yaml': 'simulated: true', 'html': '<!doctype html>\n<title>Simulated</title>\n<p>No model was used.</p>'}[language]
+            reply = f'```{language}\n{sample}\n```'
+        return {'choices': [{'message': {'content': reply,
                     'reasoning_content': ''}, 'finish_reason': 'stop'}],
                 'model': p['model'], 'usage': None, 'provider': 'demo'}, body
     if key is None:
@@ -408,7 +525,7 @@ class Workbench:
                     continue
                 p = run['draft']['profiles'][result['column']]
                 items.append({'id': f'{rid}:{index}', 'run_id': rid, 'title': run['title'],
-                    'created': run['created'], 'profile': p, 'task': run['draft']['task'],
+                    'created': run['created'], 'profile': p, 'task': run['draft']['task'], 'file_type': run['draft'].get('file_type'),
                     'repeat': result['repeat'], 'seed': result['seed'], 'status': result['status'],
                     'seconds': result['seconds'], 'finish_reason': result.get('finish_reason'),
                     'usage': result.get('usage'), 'test_id':run['draft'].get('test_id')})
@@ -432,12 +549,12 @@ class Workbench:
                 d = run['draft']
                 entries.append({'id': result_id, 'run_id': rid, 'title': run['title'],
                     'created': run['created'], 'profile': d['profiles'][result['column']],
-                    'task': d['task'], 'instructions': d['instructions'], 'content': d['content'],
+                    'task': d['task'], 'file_type': d.get('file_type'), 'instructions': d['instructions'], 'content': d['content'],
                     'context':d.get('context',''), 'criteria':d.get('criteria',''), 'test_id':d.get('test_id'),
                     'result': result})
             except (IndexError, KeyError, ValueError):
                 raise ValueError('Saved result not found') from None
-        differences = [name for name in ('content', 'instructions', 'task', 'context', 'criteria')
+        differences = [name for name in ('content', 'instructions', 'task', 'file_type', 'context', 'criteria')
                        if any(e[name] != entries[0][name] for e in entries[1:])]
         return {'kind': 'saved_result_comparison', 'entries': entries, 'differences': differences,
                 'same_input': not differences}
@@ -450,7 +567,7 @@ class Workbench:
                 raise ValueError('Test definition not found')
             template = definition['draft']
             if (any(d.get(k) != template.get(k) for k in TEST_FIELDS) or
-                    any(any(p[k] != template['profiles'][0][k] for k in PARAM_FIELDS) for p in d['profiles'])):
+                    any(any(p[k] != template['profiles'][0].get(k, CODING_DEFAULT_TOKENS) for k in PARAM_FIELDS) for p in d['profiles'])):
                 raise ValueError('Test content or parameters changed; save a new test revision before linking these results')
         with self.lock:
             if self.active:
@@ -465,7 +582,7 @@ class Workbench:
             run = {'id': rid, 'title': d['title'], 'created': time.time(), 'status': 'running',
                    'draft': d, 'content_hash': hashlib.sha256(d['content'].encode()).hexdigest(),
                    'jobs': jobs, 'results': [], 'request_limit': len(jobs),
-                   'output_token_ceiling': sum(d['profiles'][i][d['task'] + '_output_tokens'] for i, _, _ in jobs)}
+                   'output_token_ceiling': sum(output_cap(d, d['profiles'][i]) for i, _, _ in jobs)}
             self.cancel.clear()
             self.save(rid, 'run', run)
             self.active = rid
@@ -511,6 +628,8 @@ class Workbench:
                         model=response.get('model'), provider=response.get('provider'),
                         response_id=response.get('id'), request=body,
                         support='simulated' if p['provider'] == 'demo' else 'requested; effective behavior unverified')
+                    if d['task'] == 'coding':
+                        result['file'] = build_file(result['text'], d['file_type'])
                 except RequestAbandoned:
                     abandoned = True
                     result.update(status='error', text='', usage=None,

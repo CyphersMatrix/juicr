@@ -71,7 +71,9 @@ def parser():
     create.add_argument('--instructions', help='What the model should do')
     create.add_argument('--context-file')
     create.add_argument('--criteria', default='')
-    create.add_argument('--task', choices=['writing', 'extraction'], default='writing')
+    create.add_argument('--task', choices=['writing', 'extraction', 'coding'], default='writing')
+    create.add_argument('--file-type', choices=['python_snippet', 'python_script', 'html_app', 'json', 'yaml'], help='Required for --task coding')
+    create.add_argument('--coding-output-tokens', type=int, default=4096)
     create.add_argument('--settings', default='{}', help='JSON sampling object, e.g. {"temperature":0.7}')
     create.add_argument('--writing-output-tokens', type=int, default=1024)
     create.add_argument('--extraction-output-tokens', type=int, default=512)
@@ -114,8 +116,8 @@ def create_draft(a):
             raise ValueError('Use --file alone for draft fields; edit the JSON to change its parameters')
         supplied = json.load(sys.stdin) if a.file == '-' else json.loads(Path(a.file).read_text(encoding='utf-8-sig'))
         # Reject accidental option overrides instead of silently ignoring them.
-        defaults = dict(task='writing', writing_output_tokens=1024, extraction_output_tokens=512,
-                        repeats=1, seed=0, timeout=120)
+        defaults = dict(task='writing', writing_output_tokens=1024, extraction_output_tokens=512, coding_output_tokens=4096,
+                        file_type=None, repeats=1, seed=0, timeout=120)
         if any(getattr(a, k) != v for k, v in defaults.items()):
             raise ValueError('Use --file alone for draft fields; edit the JSON to change its parameters')
         return validate(supplied)
@@ -123,9 +125,10 @@ def create_draft(a):
         raise ValueError('Provide --file, or --title, --content-file and --instructions')
     return validate(dict(title=a.title, content=Path(a.content_file).read_text(encoding='utf-8-sig'),
         instructions=a.instructions, context=Path(a.context_file).read_text(encoding='utf-8-sig') if a.context_file else '',
-        criteria=a.criteria, task=a.task, repeats=a.repeats, seed=a.seed, timeout=a.timeout,
+        criteria=a.criteria, task=a.task, **({'file_type': a.file_type} if a.task == 'coding' else {}), repeats=a.repeats, seed=a.seed, timeout=a.timeout,
         profiles=[dict(name='Test parameters', provider='demo', model='demo-model', settings=json.loads(a.settings),
-                       writing_output_tokens=a.writing_output_tokens, extraction_output_tokens=a.extraction_output_tokens)]))
+                       writing_output_tokens=a.writing_output_tokens, extraction_output_tokens=a.extraction_output_tokens,
+                       coding_output_tokens=a.coding_output_tokens)]))
 
 
 def execute(a, c):

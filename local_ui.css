@@ -98,3 +98,5 @@
 
 .test-card .test-source{font-size:13px;color:var(--muted);margin:0}.test-card .test-source strong{font-weight:600}.test-card .test-meta+.test-meta{margin-top:-4px}
 :root[data-mode=expert] .test-card>.test-source{display:none}
+
+.code-result .code-file{white-space:pre;overflow:auto;max-height:520px;font-family:Consolas,'Cascadia Mono',monospace;font-size:13px;line-height:1.5;tab-size:4}.code-result .validation-valid{border-color:var(--green)}.code-result .validation-invalid{border-color:var(--paint-9b3d31)}.code-result .validation-not_checked{opacity:.85}
