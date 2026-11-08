@@ -234,3 +234,7 @@
 - Stop no longer waits out a slow provider: the call runs in a helper thread and Stop abandons it (error, usage unknown). Tradeoff: an abandoned request may still complete at the provider, and `active` is released, so a new run can overlap it; the UI message says so.
 - Per-result persistence: results go to `run_result` rows instead of rewriting the whole run JSON each time (quadratic with long reasoning outputs); reads merge them, and restart keeps them. Draft history entries titled "Untitled comparison" now show model and content snippet.
 - The running server at :8811 needs a restart to pick these changes up.
+
+## 2026-11-07 — Step 1 test cards
+
+- Test cards now show saved date, last run, models tried and a source snippet so similar tests can be told apart (expert mode hides the source line). Delete test moved from the card into the editor (Edit test -> Delete this test); the confirmation dialog and undo are unchanged.
