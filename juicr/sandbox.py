@@ -5,7 +5,10 @@ memory/PID/CPU ceilings, hard timeout with kill, output cap. Uses the CT's own p
 stdlib bind-mounted read-only into the existing debian:13 image, so no new image is downloaded.
 Reference/test code written by us may run elsewhere; MODEL-AUTHORED code must only run here."""
 import os
-import pwd
+try:
+    import pwd  # POSIX only; the sandbox itself runs on Linux (available() is False elsewhere)
+except ImportError:  # Windows: lets the package import so non-sandbox code and tests run
+    pwd = None
 import re
 import shutil
 import subprocess
@@ -23,7 +26,7 @@ class SandboxUnavailable(Exception):
 
 
 def available():
-    return shutil.which("podman") is not None and os.path.exists(PY)
+    return pwd is not None and shutil.which("podman") is not None and os.path.exists(PY)
 
 
 def _libexpat():

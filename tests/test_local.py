@@ -342,6 +342,62 @@ class LocalTests(unittest.TestCase):
             self.assertIsNone(run['results'][0]['usage'])
             self.assertNotIn('private-key', json.dumps(run))
 
+    def test_stop_returns_promptly_while_request_in_flight_and_marks_usage_unknown(self):
+        started, release = threading.Event(), threading.Event()
+        def slow(d, p, seed):
+            started.set(); release.wait(10)
+            return {'choices': [{'message': {'content': 'late'}}]}, request_body(d, p, seed)
+        with tempfile.TemporaryDirectory() as tmp:
+            w = Workbench(tmp, slow); rid = w.start(draft())
+            self.assertTrue(started.wait(2))
+            t0 = time.monotonic(); w.cancel.set(); wait(w)
+            self.assertLess(time.monotonic() - t0, 2)
+            run = w.get(rid)
+            release.set()
+            self.assertEqual(run['status'], 'cancelled')
+            self.assertEqual(len(run['results']), 1)
+            r = run['results'][0]
+            self.assertEqual(r['status'], 'error'); self.assertIsNone(r['usage'])
+            self.assertIn('usage is unknown', r['error'])
+            self.assertNotIn('late', json.dumps(run))
+
+    def test_results_are_stored_incrementally_and_survive_a_restart(self):
+        first, gate = threading.Event(), threading.Event()
+        calls = []
+        def fake(d, p, seed):
+            calls.append(seed)
+            if len(calls) == 1:
+                return {'choices': [{'message': {'content': 'kept-answer'}}], 'usage': {'total_tokens': 3}}, request_body(d, p, seed)
+            first.set(); gate.wait(10)
+            return {'choices': [{'message': {'content': 'x'}}]}, request_body(d, p, seed)
+        with tempfile.TemporaryDirectory() as tmp:
+            w = Workbench(tmp, fake); rid = w.start(draft())
+            self.assertTrue(first.wait(2))
+            # Live reads see the finished result although the run record itself was not rewritten.
+            self.assertEqual(len(w.get(rid)['results']), 1)
+            self.assertEqual(len(w.saved_results()), 1)
+            with w.connect() as c:
+                self.assertEqual(json.loads(c.execute("SELECT data FROM records WHERE id=?", (rid,)).fetchone()[0])['results'], [])
+            # A new process finds the run unfinished: result kept, status interrupted, scratch rows removed.
+            restarted = Workbench(tmp)
+            run = restarted.get(rid)
+            self.assertEqual(run['status'], 'interrupted')
+            self.assertEqual([r['text'] for r in run['results']], ['kept-answer'])
+            with restarted.connect() as c:
+                self.assertEqual(c.execute('SELECT COUNT(*) FROM run_result').fetchone()[0], 0)
+            gate.set(); wait(w)
+
+    def test_generic_draft_titles_get_a_distinguishing_label(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            w = Workbench(tmp)
+            for text in ('alpha source text', 'beta source text'):
+                w.save(text.split()[0], 'draft', dict(draft(), title='Untitled comparison', content=text))
+            w.save('named', 'draft', dict(draft(), title='My setup'))
+            labels = {i['id']: i['title'] for i in w.state()['items']}
+            self.assertNotEqual(labels['alpha'], labels['beta'])
+            self.assertIn('alpha source text', labels['alpha'])
+            self.assertEqual(labels['named'], 'My setup')
+
     def test_restart_marks_interrupted_without_dispatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             w = Workbench(tmp)

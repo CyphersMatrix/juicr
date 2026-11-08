@@ -111,6 +111,10 @@ def request_body(d, p, seed):
     return body
 
 
+class RequestAbandoned(Exception):
+    """Stop was pressed while a provider request was still in flight."""
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
@@ -162,11 +166,14 @@ class Workbench:
             c.execute('CREATE TABLE IF NOT EXISTS records(id TEXT PRIMARY KEY, kind TEXT, data TEXT)')
             c.execute('CREATE TABLE IF NOT EXISTS deletion_batch(id TEXT PRIMARY KEY, description TEXT, created REAL)')
             c.execute('CREATE TABLE IF NOT EXISTS deleted(kind TEXT, target TEXT, batch TEXT, PRIMARY KEY(kind,target))')
+            # Results of an active run are appended here one row at a time; the run record is rewritten once at the end.
+            c.execute('CREATE TABLE IF NOT EXISTS run_result(run_id TEXT, idx INTEGER, data TEXT, PRIMARY KEY(run_id,idx))')
             rows = c.execute("SELECT id,data FROM records WHERE kind='run'").fetchall()
             for rid, raw in rows:
-                run = json.loads(raw)
+                run = self.hydrate(c, rid, json.loads(raw))
                 if run['status'] == 'running':
                     run['status'] = 'interrupted'
+                    c.execute('DELETE FROM run_result WHERE run_id=?', (rid,))
                     run['note'] = 'Application stopped. In-flight usage may be unknown; no automatic retry.'
                     c.execute('UPDATE records SET data=? WHERE id=?', (json.dumps(run), rid))
 
@@ -179,6 +186,14 @@ class Workbench:
         finally:
             connection.close()
 
+    @staticmethod
+    def hydrate(c, rid, run):
+        """Attach incrementally stored results to a run that has not been finalized yet."""
+        if run.get('status') == 'running':
+            run['results'] = [json.loads(r[0]) for r in
+                              c.execute('SELECT data FROM run_result WHERE run_id=? ORDER BY idx', (rid,))]
+        return run
+
     def save(self, rid, kind, data):
         with self.connect() as c:
             c.execute('INSERT OR REPLACE INTO records VALUES(?,?,?)', (rid, kind, json.dumps(data)))
@@ -190,6 +205,9 @@ class Workbench:
         if row is None or (row[0], rid) in hidden:
             raise ValueError('Saved item not found')
         value = json.loads(row[1])
+        if row[0] == 'run':
+            with self.connect() as c:
+                self.hydrate(c, rid, value)
         if row[0] == 'run' and value.get('results'):
             # Keep response indices stable while omitting deleted response payloads.
             value['results'] = [{'deleted':True,'column':r['column'],'repeat':r['repeat']}
@@ -279,12 +297,22 @@ class Workbench:
                              '(SELECT 1 FROM deleted WHERE batch=deletion_batch.id) ORDER BY created DESC LIMIT 1').fetchone()
         rows = [(i,k,raw) for i,k,raw in rows if not (k=='run' and (rs:=json.loads(raw).get('results')) and
                     all(('result',f'{i}:{index}') in hidden for index in range(len(rs))))]
-        return {'items': [{'id': i, 'kind': k, 'title': (v := json.loads(raw))['title'],
+        return {'items': [{'id': i, 'kind': k, 'title': self.label(k, v := json.loads(raw)),
                            'status': v.get('status'), 'created': v.get('created')}
                           for i, k, raw in rows], 'active': self.active,
                 'openrouter_ready': self.connections.status()['openrouter']['configured'],
                 'lemonade_url': self.connections.url, 'connections': self.connections.status(),
                 'last_deletion':{'id':undo[0],'description':undo[1]} if undo else None}
+
+    @staticmethod
+    def label(kind, value):
+        """History label; generic draft titles get a content snippet so entries can be told apart."""
+        title = value['title']
+        if kind == 'draft' and title.strip() in ('', 'Untitled comparison'):
+            snippet = ' '.join(str(value.get('content', '')).split())[:40]
+            models = ', '.join(sorted({p.get('model', '') for p in value.get('profiles', []) if p.get('model')}))
+            title = 'Untitled setup' + (f' · {models}' if models else '') + (f' · “{snippet}”' if snippet else '')
+        return title
 
     def save_test(self, draft, previous=None):
         d = validate(draft)
@@ -366,12 +394,15 @@ class Workbench:
 
     def saved_results(self):
         """One stable selectable entry per recorded response, including failed attempts."""
+        loaded = []
         with self.connect() as c:
             records = c.execute("SELECT id,data FROM records WHERE kind='run' ORDER BY rowid DESC").fetchall()
             hidden = {row[0] for row in c.execute("SELECT target FROM deleted WHERE kind='result'")}
+            for rid, raw in records:
+                run = self.hydrate(c, rid, json.loads(raw))
+                loaded.append((rid, run))
         items = []
-        for rid, raw in records:
-            run = json.loads(raw)
+        for rid, run in loaded:
             for index, result in enumerate(run.get('results', [])):
                 if f'{rid}:{index}' in hidden:
                     continue
@@ -441,6 +472,25 @@ class Workbench:
             threading.Thread(target=self.execute, args=(run,), daemon=True).start()
             return rid
 
+    def call_cancellable(self, d, p, seed):
+        """Run the provider call in a helper thread so Stop need not wait out a slow request."""
+        box = {}
+
+        def work():
+            try:
+                box['ok'] = self.caller(d, p, seed)
+            except BaseException as exc:
+                box['err'] = exc
+        thread = threading.Thread(target=work, daemon=True)
+        thread.start()
+        while thread.is_alive():
+            thread.join(0.1)
+            if self.cancel.is_set() and thread.is_alive():
+                raise RequestAbandoned()
+        if 'err' in box:
+            raise box['err']
+        return box['ok']
+
     def execute(self, run):
         try:
             d = run['draft']
@@ -450,8 +500,9 @@ class Workbench:
                 p = d['profiles'][i]
                 result = {'column': i, 'repeat': repeat, 'seed': seed, 'request': request_body(d, p, seed)}
                 t0 = time.monotonic()
+                abandoned = False
                 try:
-                    response, body = self.caller(d, p, seed)
+                    response, body = self.call_cancellable(d, p, seed)
                     choice = response['choices'][0]
                     message = choice.get('message', {})
                     result.update(status='done', text=message.get('content') or '',
@@ -460,20 +511,31 @@ class Workbench:
                         model=response.get('model'), provider=response.get('provider'),
                         response_id=response.get('id'), request=body,
                         support='simulated' if p['provider'] == 'demo' else 'requested; effective behavior unverified')
+                except RequestAbandoned:
+                    abandoned = True
+                    result.update(status='error', text='', usage=None,
+                                  error='Stopped while this request was in flight. The provider may still finish it and '
+                                        'charge for it; usage is unknown.')
                 except Exception as exc:
                     # Never persist arbitrary transport exceptions, which may include credentials.
                     result.update(status='error', text='', usage=None,
                                   error=str(exc) if type(exc) is ValueError else 'Request failed; usage unknown')
                 result['seconds'] = time.monotonic() - t0
                 run['results'].append(result)
-                self.save(run['id'], 'run', run)
+                with self.connect() as c:  # append one row; the full record is written once at the end
+                    c.execute('INSERT OR REPLACE INTO run_result VALUES(?,?,?)',
+                              (run['id'], len(run['results']) - 1, json.dumps(result)))
+                if abandoned:
+                    break
             run['status'] = 'cancelled' if self.cancel.is_set() else 'completed'
             if run['status'] == 'completed' and any(r['status'] == 'error' for r in run['results']):
                 run['status'] = 'completed_with_errors'
         finally:
             if run['status'] == 'running':
                 run['status'] = 'interrupted'
-            self.save(run['id'], 'run', run)
+            with self.connect() as c:  # same transaction: final record and removal of the incremental rows
+                c.execute('INSERT OR REPLACE INTO records VALUES(?,?,?)', (run['id'], 'run', json.dumps(run)))
+                c.execute('DELETE FROM run_result WHERE run_id=?', (run['id'],))
             with self.lock:
                 self.active = None
 

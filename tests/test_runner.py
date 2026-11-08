@@ -168,7 +168,11 @@ class TestEvidenceIntegrity(Base):
         with self.assertRaises(EvidenceError):
             self.ev.finalize("trial", "x", {"a": 2})
         p = os.path.join(self.ev.root, "manifests", "trial-x.json")
-        self.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o400)
+        mode = stat.S_IMODE(os.stat(p).st_mode)
+        if os.name == "nt":  # Windows only models the read-only attribute
+            self.assertFalse(mode & 0o200)
+        else:
+            self.assertEqual(mode, 0o400)
         with open(p) as fh: txt = fh.read()
         os.chmod(p, 0o600)
         with open(p, "w") as fh: fh.write(txt.replace('"a": 1', '"a": 9'))

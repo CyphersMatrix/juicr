@@ -15,6 +15,8 @@ class EvidenceError(Exception):
 
 
 def _fsync_dir(path):
+    if os.name == "nt":  # Windows cannot open a directory for fsync; file fsync already ran
+        return
     fd = os.open(path, os.O_RDONLY)
     try:
         os.fsync(fd)

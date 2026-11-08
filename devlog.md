@@ -227,3 +227,10 @@
 - Reading: one reviewer, near-ceiling ratings, so the human dimensions do not separate temperatures; the automatic word-count misses (98/98/87 words) did not reduce human clarity or tone ratings.
 
 - Pilot-2 W1 reviews completed by the owner: all 6 rated 2/2 for audience/clarity and tone, including the two that omit the start date (so human clarity/tone ratings do not capture fact omission; the automatic factual check does) and the three under 100 words. No trials remain pending human review in either experiment; the pilot's evidence is complete. Still unpublished; no external judging.
+
+## 2026-11-07 — Review fixes (local app)
+
+- Windows regression: `juicr/sandbox.py` imported `pwd` unconditionally and `evidence._fsync_dir` opened a directory (not allowed on Windows). Both are now guarded (`available()` is False without `pwd`), and one test asserts POSIX mode bits only off Windows. Full suite: 148 tests pass, 7 sandbox tests skip (Linux/Podman only). Hiding the import error had been masking 14 failures that were all these two causes.
+- Stop no longer waits out a slow provider: the call runs in a helper thread and Stop abandons it (error, usage unknown). Tradeoff: an abandoned request may still complete at the provider, and `active` is released, so a new run can overlap it; the UI message says so.
+- Per-result persistence: results go to `run_result` rows instead of rewriting the whole run JSON each time (quadratic with long reasoning outputs); reads merge them, and restart keeps them. Draft history entries titled "Untitled comparison" now show model and content snippet.
+- The running server at :8811 needs a restart to pick these changes up.
