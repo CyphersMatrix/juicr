@@ -1,0 +1,297 @@
+test_cases (unittest.loader._FailedTest.test_cases) ... ERROR
+test_bad_token_rejected_and_owner_not_replaceable (test_controller.TestApproval.test_bad_token_rejected_and_owner_not_replaceable) ... ok
+test_budget_increase_only_by_owner_and_only_upward (test_controller.TestApproval.test_budget_increase_only_by_owner_and_only_upward) ... ok
+test_forged_owner_principal_rejected_for_protected (test_controller.TestApproval.test_forged_owner_principal_rejected_for_protected) ... ok
+test_ordinary_callers_cannot_approve (test_controller.TestApproval.test_ordinary_callers_cannot_approve) ... ok
+test_protected_actions_need_separate_owner_approval_per_experiment (test_controller.TestApproval.test_protected_actions_need_separate_owner_approval_per_experiment) ... ok
+test_concurrent_admission_never_oversubscribes (test_controller.TestBudget.test_concurrent_admission_never_oversubscribes) ... ok
+test_consumption_persists_across_restart (test_controller.TestBudget.test_consumption_persists_across_restart) ... ok
+test_no_dispatch_after_exhaustion_and_active_work_cancelled (test_controller.TestBudget.test_no_dispatch_after_exhaustion_and_active_work_cancelled) ... ok
+test_unapproved_dimension_refused (test_controller.TestBudget.test_unapproved_dimension_refused) ... ok
+test_unknown_usage_is_not_zero_and_overrun_recorded (test_controller.TestBudget.test_unknown_usage_is_not_zero_and_overrun_recorded) ... ok
+test_all_done_completes (test_controller.TestLifecycle.test_all_done_completes) ... ok
+test_approved_experiment_with_no_trials_survives_restart_and_sweeps (test_controller.TestLifecycle.test_approved_experiment_with_no_trials_survives_restart_and_sweeps) ... ok
+test_cancel_with_nothing_running_reaches_cancelled (test_controller.TestLifecycle.test_cancel_with_nothing_running_reaches_cancelled) ... ok
+test_cancelled_experiment_reaches_cancelled (test_controller.TestLifecycle.test_cancelled_experiment_reaches_cancelled) ... ok
+test_cancelling_an_experiment_with_no_trials_reaches_cancelled (test_controller.TestLifecycle.test_cancelling_an_experiment_with_no_trials_reaches_cancelled) ... ok
+test_exhaustion_with_nothing_running_reaches_terminal (test_controller.TestLifecycle.test_exhaustion_with_nothing_running_reaches_terminal) ... ok
+test_experiment_completes_and_partial (test_controller.TestLifecycle.test_experiment_completes_and_partial) ... ok
+test_restart_reconciliation_marks_unknown_not_zero_and_no_resume (test_controller.TestLifecycle.test_restart_reconciliation_marks_unknown_not_zero_and_no_resume) ... ok
+test_sweep_cancels_queued_after_finite_grace (test_controller.TestLifecycle.test_sweep_cancels_queued_after_finite_grace) ... ok
+test_tick_respects_concurrency_and_order (test_controller.TestLifecycle.test_tick_respects_concurrency_and_order) ... ok
+test_tick_stops_on_exhaustion (test_controller.TestLifecycle.test_tick_stops_on_exhaustion) ... ok
+test_usage_in_unapproved_dimension_is_recorded_not_fatal (test_controller.TestLifecycle.test_usage_in_unapproved_dimension_is_recorded_not_fatal) ... ok
+test_admit_many_is_all_or_nothing (test_controller.TestSpecsAndBatchAdmit.test_admit_many_is_all_or_nothing) ... ok
+test_experiment_spec_persists_and_shows_in_snapshot (test_controller.TestSpecsAndBatchAdmit.test_experiment_spec_persists_and_shows_in_snapshot) ... ok
+test_cancellation_overrides_grace (test_controller.TestWindowAndGrace.test_cancellation_overrides_grace) ... ok
+test_finite_grace_expires (test_controller.TestWindowAndGrace.test_finite_grace_expires) ... ok
+test_grace_does_not_admit_new_work_but_runs_queued (test_controller.TestWindowAndGrace.test_grace_does_not_admit_new_work_but_runs_queued) ... ok
+test_grace_never_expands_budget (test_controller.TestWindowAndGrace.test_grace_never_expands_budget) ... ok
+test_unlimited_grace_continues_queued (test_controller.TestWindowAndGrace.test_unlimited_grace_continues_queued) ... ok
+test_window_not_open_yet (test_controller.TestWindowAndGrace.test_window_not_open_yet) ... ok
+test_cancel_stops_queue_and_does_not_retry_active (test_local.LocalTests.test_cancel_stops_queue_and_does_not_retry_active) ... ok
+test_exact_shared_content_paired_seeds_and_durable_results (test_local.LocalTests.test_exact_shared_content_paired_seeds_and_durable_results) ... ok
+test_local_server_guard_and_save_flow (test_local.LocalTests.test_local_server_guard_and_save_flow) ... ok
+test_restart_marks_interrupted_without_dispatch (test_local.LocalTests.test_restart_marks_interrupted_without_dispatch) ... ok
+test_translation_and_task_caps (test_local.LocalTests.test_translation_and_task_caps) ... ok
+test_validation_rejects_invalid_and_unknown_controls (test_local.LocalTests.test_validation_rejects_invalid_and_unknown_controls) ... ok
+test_load_is_non_persistent (test_runner.TestConfigEvidence.test_load_is_non_persistent) ... ok
+test_verified_and_accepted_but_unverified_are_distinct (test_runner.TestConfigEvidence.test_verified_and_accepted_but_unverified_are_distinct) ... ok
+test_artifacts_content_addressed_and_tamper_detected (test_runner.TestEvidenceIntegrity.test_artifacts_content_addressed_and_tamper_detected) ... ERROR
+test_events_append_only_and_ids_validated (test_runner.TestEvidenceIntegrity.test_events_append_only_and_ids_validated) ... ok
+test_key_never_appears_in_evidence_or_errors (test_runner.TestEvidenceIntegrity.test_key_never_appears_in_evidence_or_errors) ... ERROR
+test_manifest_immutable_and_hash_verified (test_runner.TestEvidenceIntegrity.test_manifest_immutable_and_hash_verified) ... ERROR
+test_autoload_guard_reestablishes_before_sending (test_runner.TestGuardAndAttempts.test_autoload_guard_reestablishes_before_sending) ... ERROR
+test_cancel_marks_server_cancellation_unverified (test_runner.TestGuardAndAttempts.test_cancel_marks_server_cancellation_unverified) ... ERROR
+test_failed_attempts_survive_retries_and_are_accounted (test_runner.TestGuardAndAttempts.test_failed_attempts_survive_retries_and_are_accounted) ... ERROR
+test_timeout_classified_and_stream_closed (test_runner.TestGuardAndAttempts.test_timeout_classified_and_stream_closed) ... ERROR
+test_timing_cache_and_usage_recorded_unknown_not_zero (test_runner.TestGuardAndAttempts.test_timing_cache_and_usage_recorded_unknown_not_zero) ... ERROR
+test_wrong_config_never_sends_request (test_runner.TestGuardAndAttempts.test_wrong_config_never_sends_request) ... ERROR
+test_restoration_failure_warns_continues_and_next_run_reverifies (test_runner.TestRestorationAndResume.test_restoration_failure_warns_continues_and_next_run_reverifies) ... ERROR
+test_restore_success_returns_to_prior_state (test_runner.TestRestorationAndResume.test_restore_success_returns_to_prior_state) ... ok
+test_resume_never_resends_completed_trials_or_resets_budget (test_runner.TestRestorationAndResume.test_resume_never_resends_completed_trials_or_resets_budget) ... ERROR
+test_service (unittest.loader._FailedTest.test_service) ... ERROR
+test_lockout_after_five_failures (test_web.TestAuth.test_lockout_after_five_failures) ... ok
+test_login_flags_and_failures (test_web.TestAuth.test_login_flags_and_failures) ... ok
+test_security_headers (test_web.TestAuth.test_security_headers) ... ok
+test_tampered_cookie_rejected (test_web.TestAuth.test_tampered_cookie_rejected) ... ok
+test_unauthenticated_refused (test_web.TestAuth.test_unauthenticated_refused) ... ok
+test_api_admit_validates_cost_and_budget_flow (test_web.TestCsrfAndRoles.test_api_admit_validates_cost_and_budget_flow) ... ok
+test_bad_bearer_is_not_downgraded_to_session (test_web.TestCsrfAndRoles.test_bad_bearer_is_not_downgraded_to_session) ... ok
+test_bearer_cannot_use_owner_actions (test_web.TestCsrfAndRoles.test_bearer_cannot_use_owner_actions) ... ok
+test_csrf_required_for_cookie_posts (test_web.TestCsrfAndRoles.test_csrf_required_for_cookie_posts) ... ok
+test_experiment_id_validation_and_output_escaping (test_web.TestCsrfAndRoles.test_experiment_id_validation_and_output_escaping) ... ok
+test_logout_requires_csrf (test_web.TestCsrfAndRoles.test_logout_requires_csrf) ... ok
+test_mcp_cannot_self_grant_but_can_ask (test_web.TestCsrfAndRoles.test_mcp_cannot_self_grant_but_can_ask) ... ok
+test_web4 (unittest.loader._FailedTest.test_web4) ... ERROR
+
+======================================================================
+ERROR: test_cases (unittest.loader._FailedTest.test_cases)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_cases
+Traceback (most recent call last):
+  File "C:\Python314\Lib\unittest\loader.py", line 426, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Python314\Lib\unittest\loader.py", line 367, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "P:\~vibe\juicr\tests\test_cases.py", line 6, in <module>
+    from juicr import agent, cases, oracles, pilot, sandbox
+  File "P:\~vibe\juicr\juicr\oracles.py", line 10, in <module>
+    from . import cases, sandbox
+  File "P:\~vibe\juicr\juicr\sandbox.py", line 8, in <module>
+    import pwd
+ModuleNotFoundError: No module named 'pwd'
+
+
+======================================================================
+ERROR: test_artifacts_content_addressed_and_tamper_detected (test_runner.TestEvidenceIntegrity.test_artifacts_content_addressed_and_tamper_detected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 185, in test_artifacts_content_addressed_and_tamper_detected
+    h1 = self.ev.put_artifact(b"hello"); h2 = self.ev.put_artifact(b"hello")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpgdiapth4\\ev\\artifacts'
+
+======================================================================
+ERROR: test_key_never_appears_in_evidence_or_errors (test_runner.TestEvidenceIntegrity.test_key_never_appears_in_evidence_or_errors)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 202, in test_key_never_appears_in_evidence_or_errors
+    self.r.execute("t1", CFG, dict(SPEC, max_attempts=2))
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpa1yspcqv\\ev\\artifacts'
+
+======================================================================
+ERROR: test_manifest_immutable_and_hash_verified (test_runner.TestEvidenceIntegrity.test_manifest_immutable_and_hash_verified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 167, in test_manifest_immutable_and_hash_verified
+    self.ev.finalize("trial", "x", {"a": 1})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 100, in finalize
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpyaz7myrh\\ev\\manifests'
+
+======================================================================
+ERROR: test_autoload_guard_reestablishes_before_sending (test_runner.TestGuardAndAttempts.test_autoload_guard_reestablishes_before_sending)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 75, in test_autoload_guard_reestablishes_before_sending
+    out = self.r.execute("t1", CFG, SPEC)
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpqiye9hvd\\ev\\artifacts'
+
+======================================================================
+ERROR: test_cancel_marks_server_cancellation_unverified (test_runner.TestGuardAndAttempts.test_cancel_marks_server_cancellation_unverified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 123, in test_cancel_marks_server_cancellation_unverified
+    out = self.r.execute("t1", CFG, SPEC)
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmp0423g02g\\ev\\artifacts'
+
+======================================================================
+ERROR: test_failed_attempts_survive_retries_and_are_accounted (test_runner.TestGuardAndAttempts.test_failed_attempts_survive_retries_and_are_accounted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 94, in test_failed_attempts_survive_retries_and_are_accounted
+    out = self.r.execute("t1", CFG, spec)
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmp8otucd_n\\ev\\artifacts'
+
+======================================================================
+ERROR: test_timeout_classified_and_stream_closed (test_runner.TestGuardAndAttempts.test_timeout_classified_and_stream_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 117, in test_timeout_classified_and_stream_closed
+    out = self.r.execute("t1", CFG, dict(SPEC, deadline_s=1))
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmptf0sybhl\\ev\\artifacts'
+
+======================================================================
+ERROR: test_timing_cache_and_usage_recorded_unknown_not_zero (test_runner.TestGuardAndAttempts.test_timing_cache_and_usage_recorded_unknown_not_zero)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 104, in test_timing_cache_and_usage_recorded_unknown_not_zero
+    out = self.r.execute("t1", CFG, SPEC)
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmp48i9kh7l\\ev\\artifacts'
+
+======================================================================
+ERROR: test_wrong_config_never_sends_request (test_runner.TestGuardAndAttempts.test_wrong_config_never_sends_request)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 84, in test_wrong_config_never_sends_request
+    out = self.r.execute("t1", CFG, SPEC)
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpdgyth5_r\\ev\\artifacts'
+
+======================================================================
+ERROR: test_restoration_failure_warns_continues_and_next_run_reverifies (test_runner.TestRestorationAndResume.test_restoration_failure_warns_continues_and_next_run_reverifies)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 139, in test_restoration_failure_warns_continues_and_next_run_reverifies
+    rest = self.r.run_segment("s1", CFG, [("t1", SPEC)])
+  File "P:\~vibe\juicr\juicr\runner.py", line 211, in run_segment
+    results.append(self.execute(tid, config, spec)["outcome"])
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmp1zx6pgkm\\ev\\artifacts'
+
+======================================================================
+ERROR: test_resume_never_resends_completed_trials_or_resets_budget (test_runner.TestRestorationAndResume.test_resume_never_resends_completed_trials_or_resets_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "P:\~vibe\juicr\tests\test_runner.py", line 154, in test_resume_never_resends_completed_trials_or_resets_budget
+    self.r.execute("t1", CFG, SPEC)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\runner.py", line 145, in execute
+    req_hash = self.ev.put_artifact(repr(sorted(spec["request"].items())).encode(), "text/plain")
+  File "P:\~vibe\juicr\juicr\evidence.py", line 41, in put_artifact
+    _fsync_dir(os.path.dirname(p))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "P:\~vibe\juicr\juicr\evidence.py", line 18, in _fsync_dir
+    fd = os.open(path, os.O_RDONLY)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\cgcha\\AppData\\Local\\Temp\\tmpbhvww1a_\\ev\\artifacts'
+
+======================================================================
+ERROR: test_service (unittest.loader._FailedTest.test_service)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_service
+Traceback (most recent call last):
+  File "C:\Python314\Lib\unittest\loader.py", line 426, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Python314\Lib\unittest\loader.py", line 367, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "P:\~vibe\juicr\tests\test_service.py", line 7, in <module>
+    from juicr import cases, oracles, sandbox
+  File "P:\~vibe\juicr\juicr\oracles.py", line 10, in <module>
+    from . import cases, sandbox
+  File "P:\~vibe\juicr\juicr\sandbox.py", line 8, in <module>
+    import pwd
+ModuleNotFoundError: No module named 'pwd'
+
+
+======================================================================
+ERROR: test_web4 (unittest.loader._FailedTest.test_web4)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_web4
+Traceback (most recent call last):
+  File "C:\Python314\Lib\unittest\loader.py", line 426, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Python314\Lib\unittest\loader.py", line 367, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "P:\~vibe\juicr\tests\test_web4.py", line 18, in <module>
+    from juicr.service import Orchestrator, QueueBackend
+  File "P:\~vibe\juicr\juicr\service.py", line 10, in <module>
+    from . import agent, cases, oracles, pilot, sandbox, simdata
+  File "P:\~vibe\juicr\juicr\oracles.py", line 10, in <module>
+    from . import cases, sandbox
+  File "P:\~vibe\juicr\juicr\sandbox.py", line 8, in <module>
+    import pwd
+ModuleNotFoundError: No module named 'pwd'
+
+
+----------------------------------------------------------------------
+Ran 66 tests in 15.070s
+
+FAILED (errors=14)

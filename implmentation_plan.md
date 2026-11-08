@@ -1,295 +1,73 @@
 # JUICR implementation plan
 
-Date: 2026-11-07  
-Status: approved creation of planning documents only. Implementation, deployment and test execution require a subsequent instruction.  
-The filename `implmentation_plan.md` intentionally matches the user request.
+Date: 2026-11-07
+Status: fresh local application implemented; development verification uses simulated responses only. Live inference is not part of this build verification.
+The filename `implmentation_plan.md` intentionally matches the original request.
 
 ## 1. Objective
 
-Create a local benchmark platform comparing **model + configuration + workload** against Lemonade running directly on Proxispace. An unprivileged Proxmox LXC provides a testing layer and a separately permissioned read-only exposition layer. Workloads: coding, document analysis, writing, extraction, and agents/tool use.
+A locally launched Python script serving a new browser interface to test sampling controls against identical content through Lemonade or OpenRouter. Support the same model with the same settings (repeatability), the same model with different settings, and different models with either shared or different settings.
 
-First deliverable: a reviewed comparison of Gemma-4-E4B-it-GGUF at temperatures 0.0 and 0.7, using one case per workload and three paired seeds: **30 top-level trials**. Agent trials can make multiple inference requests. Confirm the model's availability, exact identity, quantization and backend before execution.
+## 2. Current architecture
 
-## 2. Evidence provenance
-
-The supplied proposal reports prior inspection establishing:
-
-- Proxispace: Ryzen AI 9 HX 370, Radeon 890M, approximately 93 GiB reported memory, Proxmox 9.2.21 and Lemonade 2026.45.3.
-- Lemonade at `http://10.138.6.1:13305`, binding to that address rather than localhost.
-- An FLM model loaded on the NPU during inspection, and an installed Vulkan llama-server.
-- Installed interfaces documenting chat controls, model-load settings, nullable system metrics and statistics for the last request.
-
-These are **reported observations**, not independently verified during creation of this file. Inventory current API-visible state before experiments. Installed release behavior takes precedence over upstream documentation. Never promote an accepted request or documented flag into proof of effective behavior.
+`python juicr_local.py` starts a loopback-only standard-library HTTP server and opens a browser. `local_ui.html`, `local_ui.css`, and `local_ui.js` implement the new interface. SQLite in a separate local data directory stores saved setups and immutable run snapshots/results. A single background worker dispatches requests sequentially. No dependency on the legacy FastAPI app, containers, host agents, MCP, publication service, or generated-code execution.
 
 ## 3. Confirmed operating decisions
 
-1. Deploy the runner in an **unprivileged Proxmox LXC** with private-network access to Lemonade. Store persistent results on its root filesystem; network-share backup is optional.
-2. The owner manually opens benchmark windows and approves budgets. Hermes may configure and run experiments through MCP within those limits.
-3. Ordinary testing users and Hermes may configure **any supported setting**, including custom backend arguments and network modes, within the approved budget. Do not replace this with a profile-only permission model.
-4. Separate owner authorization protects budget increases, publication and external judging **per experiment**. MCP cannot grant itself owner approval.
-5. **Budget exhaustion stops scheduling and cancels active work where supported.** Record unavoidable overrun. Grace extends windows, never approved budgets.
-6. Finite grace is configurable. Unlimited grace permits already queued work to finish beyond window expiry, subject to remaining budgets and human cancellation.
-7. Model reloads and runtime changes are allowed in reserved windows. A runner lock coordinates this platform only; other Lemonade clients are coordinated by convention. Record observed interference and label exclusivity unverified when necessary.
-8. Snapshot prior API-visible Lemonade state and attempt restoration. After configurable retries, **warn and continue queued experiments** if restoration fails. Record the unrestored state. Verify the required configuration before each following experiment; do not run an unestablished configuration as if valid.
-9. Use **API-accessible host evidence initially**. No SSH collector or privileged telemetry agent. Missing metrics are unavailable; uncertain effective settings remain unverified.
-10. Prove disposable nested-container isolation inside the unprivileged LXC early. **If isolation fails, stop implementation until resolved.** Do not silently switch to a VM, weaken isolation, or substitute response-only scope.
-11. Results stay private until owner-approved publication; retain bundles until manually deleted. Reports are interactive, read-only and private-network accessible.
-12. Use synthetic initial cases and human review for subjective pilot results. Local/external AI judges are optional. Local judging runs outside measured inference intervals.
-13. Display quality, speed, memory and reliability separately. No default overall score.
-14. **Stack (decided 2026-11-07):** Python with FastAPI and SQLite for the controller/runner; rootless Podman for nested sandboxes inside the LXC (Phase 0 still must prove isolation); server-rendered UI with htmx for testing, and generated static HTML/JSON for published read-only reports.
-15. **Pilot defaults (decided 2026-11-07):** finite grace of 10 minutes; two bounded restoration attempts before warn-and-continue.
-16. **Pilot window and ceiling (decided 2026-11-07):** 60-minute window; 150 total inference-request ceiling (48 measured plus warmups, probes, retries). Per-response and per-agent caps in section 7 stand. Smoke measurements may still revise these before execution.
-17. **Pilot pack approved as-is (2026-11-07):** fixtures C1/D1/W1/E1/A1, sampling (top_p 0.95, top_k 64; temperature 0.0/0.7; seeds 17/43/101), limits, order seed and the A1 admission rule, as in `PILOT_REVIEW.md`. This does NOT approve running the pilot, publication or external judging; those stay separate owner approvals, A1's admission rule was met on 2026-11-07 (tool-call compatibility check, `evidence/a1-compat-20261107.json`).
-18. **Pilot-2 approved (2026-11-07):** after run 1 showed two approved limits confounded results, the owner chose to rerun only C1, W1 and A1 with raised caps: single-response 4096 tokens and 300 s; agent 6 requests (4 tool calls, 4096 tokens, 1536 per turn, 600 s); fixtures, sampling and seeds unchanged; budget 60 min, 10 min grace, 150 requests, 100,000 tokens, 3,600 s, 24 tool calls. `pilot-1` stays as run; its results are not overwritten.
-19. The concrete pilot pack and execution limits below are **proposals; item 17 records the owner's approval of the pack as written.
+- The user chose to extend the JUICR project, then explicitly changed its architecture to a local script with a web interface and requested a new interface rather than extending the existing one.
+- Reuse the project identity and historical evidence; build a fresh runtime and UI. Earlier deployment decisions and pilot approvals are retained verbatim in `legacy_implementation_plan.md` section 3. They do not authorize new inference, cloud spending or host changes.
+- Shared instructions and source content are frozen per run. Each column records its provider, model, optional pinned OpenRouter provider, sampling settings and separate writing/extraction output caps.
+- Request controls: temperature, top_p, top_k, min_p, repeat_penalty, presence_penalty, frequency_penalty. Blank means omitted. The selected task's output cap maps to max_tokens; OpenRouter repetition maps to repetition_penalty.
+- Show request count and maximum requested output tokens before dispatch. No automatic retry; stopping skips pending requests. Non-streaming active requests may complete and incur usage. No hard dollar-cap claim.
+- Request acceptance is not evidence of effective settings. Unknown usage/cost is unavailable, never zero. Retain reasoning when provided, finish reasons, truncation signals, timing, requested and reported model/provider, and exact request evidence.
+- Local UI uses loopback, Host/Origin checks and a per-process mutation token. The user requested API key entry inside JUICR. Connections supports masked Lemonade/OpenRouter key entry, replacement/removal, configuration status and read-only catalog tests without restart. Keep keys in process memory by default; optionally remember them with user-scoped Windows DPAPI in a separate connections.json file outside comparison storage. No plaintext persistence fallback. Environment variables remain a fallback. Never return configured keys in HTTP responses or comparison exports, and clear input fields after save/close. Only send the Lemonade key to the exact configured API base URL. Block edits during active comparisons. Render model outputs as text. Development verification uses demo/injected responses; live and paid runs need the user's deliberate authorization.
+- No changes to the existing CT 641 deployment or old pilot records. New response comparisons do not execute generated code; the legacy sandbox contract remains with the old execution path.
 
-## 4. Architecture and access boundaries
+## 4. User flow and storage
 
-```mermaid
-flowchart LR
-    Users[Testing users] --> UI[Testing UI]
-    Hermes --> MCP[MCP interface]
-    UI --> Controller
-    MCP --> Controller
-    Owner[Owner authorization] --> Controller
-    Controller --> Runner[Runner and checkpoint journal]
-    Runner --> Lemonade[Lemonade on Proxispace]
-    Runner --> Sandbox[Disposable nested containers]
-    Runner --> Private[Private evidence and evaluations]
-    Private --> Publication[Owner-approved snapshot]
-    Publication --> Reports[Read-only report service]
-```
+Appearance is independent of benchmark configuration. Header selectors expose four color themes (Default, Lemonade, Espresso, Cyberpunk) and three spacing/guidance modes (Novice, Learned, Expert). Default preserves every original palette value; themes use shared semantic color roles without setting geometry. Novice preserves the original layout and full guidance. Learned reduces spacing and uses concise setting explanations. Expert further compacts layout, suppresses introductory/help prose and retains detailed input help in accessible descriptions/tooltips. Essential cost notices, errors, confirmations and changed-test explanations remain visible. All model and test functionality remains reachable in every combination.
 
-One controller owns windows, queueing, budgets, reservations, checkpoints and locking for both UI and MCP. Bootstrap minimal owner authentication before admitting budgeted runs; the richer UI follows later.
+`local_appearance.js` loads before the stylesheet and applies validated browser-local preferences under juicr.appearance.v1, with Default/Novice fallback for missing, malformed or unsupported values. Storage failure still permits current-page changes and shows that they were not remembered. Preference changes update attributes and guidance only, preserving loaded/dirty form values, test identity, result data and credentials. No appearance values are added to inference requests or exports. Check the Cartesian product of all four themes and three modes; new asset is served by the existing local HTTP route.
 
-The report process can read only published snapshots. It receives no Lemonade credential, private evidence access, owner session or test-control endpoint. Model-generated previews must not share the trusted controller origin.
+Beginner-first presentation (user-requested refactor): three separate screens, Choose a test -> Run a model -> Review results, with persistent step navigation. Start on saved test cards; show test creation only when requested. A practice example uses Demo and teaches saving/running without inference or charges. Optional one-minute guidance defines test/model/result; contextual help explains provider choice, requirements, output tokens, seeds, sampling controls, default behavior and interpretation of results. New tests omit sampling overrides; existing definitions preserve exact settings. Advanced model settings, repeats/batches, coverage and technical result evidence are collapsed by default. Expose numeric ranges and block invalid numeric runs or missing test/model selection with an explanatory next action. Edited saved settings require Save as a new test version before Run. Results lead with the answer and a concise settings summary; technical details remain available. Keep all existing records and Connections behavior without migration.
 
-Sandboxes receive fixtures and bounded tools, not credentials, private results, owner sessions or the container-management socket. Collect artifacts through a controlled path; reject traversal, escaping symlinks, oversized files and executable publication hooks. Network defaults to disabled, with supported allowlisted/unrestricted case modes configurable under the agreed testing permissions.
+Reusable test definitions: source, optional context, instructions, optional criteria/requirements, task, sampling/output limits, repeats, starting seed and timeout. Context is sent as a labelled user message before the source; criteria are appended as labelled requirements to the system instructions. Criteria do not create an automatic judge. Save with one configuration to establish shared parameters independent of model identity. Each save creates an immutable test revision; Save new revision preserves family identity and earlier evidence. A test-linked run must exactly match its saved inputs and parameters, enforced by the backend. UI edits detach changed runs from coverage until saved as a new revision.
 
-Proposed stack: Python controller/runner and validators, SQLite transactional metadata/accounting, content-addressed artifact files and an interactive frontend reading publication data. Select exact frameworks and rootless runtime after feasibility verification, recording a short architecture decision. No production stack was selected or installed by this planning task.
+Test coverage: rows are saved test revisions (latest by default; earlier revisions optional); columns are tracked model/service identities. Identity includes provider/model plus Lemonade API base URL or pinned OpenRouter provider. Save reusable test and completed/admitted runs automatically track their model; Track configured models can add targets without inference. Expose GET /api/coverage and protected POST /api/tests/save, /api/models/track and /api/tests/load. Quick test loads exact frozen inputs and parameters into the indicated model for review; Run test is separate. A missing cell reads No results / not run, failures are separate from completed responses, and successful response counts are not quality scores. Older unlinked runs do not count as test coverage. View history filters saved results to the exact revision/model; Compare repeats directly compares up to six saved responses for that cell without inference. Model focus and test/revision filters support repeat testing over time.
 
-## 5. Capability inventory
+Each column discovers models through its service's GET /models catalog, exposed through the local session-protected POST /api/models proxy. Filter dropdown options by case-insensitive model name or ID; show loading, empty and error states, result counts, and Refresh. Cache only in memory by provider/base URL, share concurrent requests, retain saved selections without silently substituting another model, and discard stale responses after an endpoint edit. The user confirmed Lemonade at `http://10.138.6.1:13305/api/v1`; its model catalog requires authentication. Keys remain server-side; catalog reads do not load models or run inference.
 
-Each entry records: scope, remote API field/flag, installed build, recipe/model applicability, reload/restart behavior, dependencies, invalid combinations, reserved aliases, requested value, effective evidence and verification limits. Status: **verified supported, conditional, unsupported or unverified**.
+Content panel -> one model/settings configuration by default -> Run test -> automatically saved response. Optional batches support up to six configurations, but comparison does not require running multiple configurations together. Save a setup to reuse content and profiles; reruns create new records. Each repeat pairs the starting seed plus repeat index across configurations; shuffle and save request order. Seeds do not guarantee identical output.
 
-| Setting family | Candidate control | Verification requirement |
-|---|---|---|
-| Context | Load `ctx_size` | Effective capacity and per-slot context; reload explicitly when required |
-| Backend/device | Load backend/device fields supported by installed API | Backend/build identity and API-visible device evidence |
-| GPU offload and CPU threads | Installed backend arguments | Exact flag support, launch evidence, actual activity where exposed |
-| Logical/physical batches | `--batch-size`, `--ubatch-size` | Valid combinations and effective diagnostics |
-| Prediction slots/client concurrency | `--parallel` and client scheduler | Actual overlapping requests; distinguish slots from clients |
-| Unified KV/context checkpoints | Installed flags | Architecture/build applicability and observed context/cache behavior |
-| KV offload and K/V types | Installed offload/cache-type flags | Device/type compatibility, memory impact and quality |
-| Flash Attention | Installed flash-attn syntax | Actual backend support; acceptance alone is insufficient |
-| Model eviction pinning | Lemonade `pinned` | Pin state/eviction behavior; not equivalent to RAM locking |
-| mmap/mlock/lazy tensors | Installed memory flags | API evidence only initially; unavailable mapping proof stays unavailable |
-| Sampling | Temperature, seed, top-p/top-k, repetition fields | Fixed requests, backend reports and controlled probes; no cross-build determinism guarantee |
-| Output/thinking | Installed token-limit/thinking fields | Truncation, reasoning behavior and reported counts |
-| Reasoning budget/message | Installed backend flags if available | Budget has observable effect; message alone is not a budget |
-| RoPE base/scale | Installed flags | Model compatibility and long-context quality; keep native defaults initially |
-| Chat template | Installed template configuration | Compatible formatting or rendered-prompt evidence; paths refer to host files |
-| Speculative decoding | Method plus Lemonade-managed draft | Exact target/draft identities and supported configuration path |
-| Structured output/tool choice | Installed request fields | Actual schema/call behavior, including backend differences |
-| Custom arguments | `llamacpp_args` | Installed reserved flags/aliases, merge behavior and safe argument handling |
+Results accumulate in a separate Saved results view, one selectable item per recorded response, including errors and repeats. GET /api/results exposes summaries across all saved runs; response IDs combine the run ID and immutable result index. View any result, search titles/models/providers/settings, and select two to six responses from any runs for comparison. POST /api/compare reads and returns frozen evidence only; it never invokes a model or modifies results. Comparison cards show output, model/provider, sampling, seed, output cap, timing, usage/cost, source and instructions. Flag different source content, instructions or tasks as uncontrolled comparisons. Existing multi-configuration runs remain compatible. Export either the current test or selected comparison as JSON without credentials.
 
-Read installed docs/help through supported API interfaces when exposed. If proof requires host access beyond the API, record the limit instead of silently adding a collector. Validate argument syntax and reserved aliases without shell interpolation. Broad configuration permissions do not permit shell injection or credential access.
+Deletion: test cards expose Delete test; saved answer rows expose Delete and selection supports Delete selected. A confirmation previews scope/counts. Deleting a test removes its entire version family, with an unchecked-by-default option to also delete all explicitly linked results from every version. Retained results remain readable/comparable with their frozen inputs; similarly titled one-off runs are never guessed into a cascade. Protected POST /api/delete-preview, /api/delete and /api/undo-delete use visibility markers in SQLite rather than rewriting immutable snapshots. Confirmed deletion requires the preview's target-set token; stale scopes must be reviewed again. Use an atomic transaction and the worker lock, and refuse delete/undo during active work. Stable response IDs remain unchanged; deleted response payloads are omitted from item reads, and empty deleted runs disappear from history. An Undo deletion bar restores each deletion batch, including after restart; restoring one batch does not restore an earlier independently deleted answer. Recoverable deletion retains data on disk and is not a secure erase.
 
-Prefer per-load nonpersistent overrides; record merge precedence and inherited defaults. Identify global/nonrestorable changes in the reviewed experiment. Never silently persist experimental settings. A launch command establishes requested process arguments, not all effective runtime behavior.
+Saved data: `~/.juicr-local/workbench.db` by default; configurable with --data. Startup marks unfinished runs interrupted and does not resend them. Display plain text output and optional reasoning, reported usage/cost, elapsed request duration, errors and truncation. No default aggregate quality score or automated judge.
 
-## 6. Controller lifecycle and budget semantics
+## 5. Verification and acceptance
 
-Run states: draft, awaiting approval, queued, preparing, running, cancelling, restoring, completed, partial, failed, cancelled. Publication is independent of execution state.
+Command-line automation: `python juicr_local.py cli` delegates to `juicr_cli.py`, also directly executable. A loopback-only HTTP client reuses the running app's per-process token internally and shared Connections/worker/storage; it never constructs a second Workbench, which would mark active records interrupted. Disable proxying and redirects. Add read-only GET /api/tests for saved definitions. Tests list defaults to latest family revisions, supports all versions/search; show returns an exact revision. Create accepts a UTF-8 draft JSON file/stdin or source file and explicit fields/settings, and previous ID creates a revision. A text-created test uses a simulated placeholder identity until run; creation does not call a model.
 
-Budget is a vector: elapsed time, inference requests, generated tokens where measurable, agent tool calls, retries, sandbox CPU/memory/disk and optional external spend. Declare hard enforcement versus accounting-only dimensions. Reserve capacity transactionally before dispatch, then reconcile observed consumption. Probes, warmups and retries must be explicitly budgeted; judging has its own allowance.
+`models list` fetches all provider catalogs or one selected provider, supports case-insensitive name/ID search and optional Lemonade URL; each catalog has explicit availability/error status. This exposes available endpoint models, not loaded-model state. `tests run ID --provider ... --model ...` changes identity only, preserves saved parameters/inputs and links results to the exact revision. Optional Lemonade URL/OpenRouter provider pinning retains service identity. Dry-run returns inputs/request/output allowance without tracking or inference. Actual run waits by default or returns immediately with no-wait; finite wait expiry returns the run ID and exit 3 without stopping work. Run show/scoped cancel and result list/compare reuse existing routes; cancel checks the active ID atomically to avoid stopping unrelated work. No key arguments; credentials remain in server Connections/environment. Normal results and command errors are JSON; help is text. Exit 0 succeeds, 1 means run/catalog failure, 2 means invalid input/connection, 3 means waiting expired, 130 means interrupted client. No automatic retries or new development authorization for live inference.
 
-On exhaustion, prevent dispatch immediately, cancel streams where supported, stop agent loops and terminate sandbox work. A closed client connection does not prove server cancellation. Record unknown usage and unavoidable in-flight overrun; unknown is not zero. Persist consumption/reservations across restart and resume. Bound recovery operations separately: restoration cannot authorize new benchmark inference after exhaustion.
+- `python -W error::ResourceWarning -m unittest tests.test_local -v`: test translation, task caps, rejected controls, identical content, paired seeds, durable records, queue cancellation, restart handling and loopback access guards. All inference is injected.
+- Browser: save setup, run two demo columns, verify completed 2/2 results and request evidence. Confirm fresh layout renders with no external asset dependency. Demo is clearly marked simulated.
+- Single-result workflow: one configuration produces one request per repeat; two independent runs retain both responses across restart. Compare their saved results with exact snapshots, unchanged inference-call count and warnings for differing inputs. Reject missing, duplicate, out-of-range or malformed saved-result selections. Browser verification uses two independent single-model demo tests followed by a saved-result comparison.
+- Reusable-test verification: immutable revision/family history, criteria/context in requests, exact parameter restoration into another model, no inference during quick load, model/service identity isolation, missing versus failed coverage, no retroactive attribution of unlinked runs, rejection of modified linked runs and persistence across restart. Browser checks saved definition -> two repeated demo responses -> model with missing coverage -> Quick test -> restored parameters, followed by direct Compare repeats.
+- Connections: test session isolation, encrypted Windows save/reload/removal, environment fallback, no plaintext or key disclosure, credential use in inference, endpoint binding and protected update/test routes. Test connection reads models only and is separate from generating output.
+- Guided-interface verification: navigate all three screens, create/save a practice test, run Demo without revealing advanced settings, inspect explanatory settings help, change temperature and verify the new-version gate, save/run the changed version, then compare both saved answers. Confirm advanced/coverage/evidence start collapsed and original records persist.
+- Deletion verification: remove individual responses without ID shifts or readable deleted payloads; delete all test versions with and without linked results; preserve unrelated tests and one-off runs; restore exact evidence across restart and overlapping deletion batches; reject stale previews and invalid selections; enforce active-run and HTTP access guards. Browser uses disposable demo data to verify answer delete/undo, test-only delete retaining answers, and test-plus-results deletion.
+- Appearance verification: `node tests/test_appearance.cjs` covers defaults, invalid preferences, all twelve combinations, theme/mode independence, reload persistence and denied storage. Browser checks actual palette changes, mode-only geometry/guidance, unchanged loaded form values, visible cost notices and persisted selectors after reload. Use an isolated preview when the main app is being used.
+- Full regression: `python -m unittest discover -s tests -v`; record pre-existing Windows failures in the legacy Linux path separately.
+- CLI: `python -W error::ResourceWarning -m unittest tests.test_cli -v`; disposable loopback integration covers create/list/show/revisions, JSON file/stdin/validation, immutable provider-target runs and accumulated comparison, catalog search/partial failures, dry-run with no tracking, async return, waiting expiry, scoped cancellation, failures, URL restrictions and both executable entry points. Catalogs and inference are injected; no live provider calls.
+- No live Lemonade/OpenRouter calls, host reconfiguration or publication during build verification.
 
-Window expiry and grace do not reset or expand a budget. Unlimited grace permits continuation of already queued work, not unrestricted new admission. Cancellation overrides grace. Every resumed segment records fresh host/cache conditions and re-establishes its configuration.
+## 6. References and limits
 
-Snapshot only state available through the API. Do not promise restoration of hidden defaults, exact KV state or evicted models when unavailable. Proposed retry default: two bounded restoration attempts and an API state check. On failure, warn and continue under decision 8; preserve evidence of the discrepancy.
+- [Lemonade chat API](https://lemonade-server.ai/docs/api/openai/)
+- [Lemonade chat settings](https://lemonade-server.ai/docs/guide/app/chat/)
+- [OpenRouter chat API](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)
+- [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection)
 
-## 7. Proposed pilot specification
-
-Review this pack and actual limits before execution.
-
-- Target: verified Gemma-4-E4B-it-GGUF identity, llama.cpp/Vulkan when verified.
-- Conditions: temperatures 0.0 and 0.7; seeds 17, 43 and 101; randomized matched-pair order, retained in the manifest.
-- Explicit proposed context: 8192 tokens; streaming enabled; one client and one active prediction.
-- Keep native chat template. Keep thinking behavior identical; disable only if supported/verified. Freeze exact remaining sampling values from verified model recommendations before execution; do not invent universal defaults.
-- Proposed per-response cap: 1024 output tokens and 180 seconds.
-- Proposed agent cap: four inference requests, four tool calls, 4096 generated tokens and 600 seconds per trial.
-- Reject oversized input rather than silently truncate. Tool results count against context.
-- Temperature zero may yield identical outputs across seeds: timing repeats do not become independent quality samples.
-
-### C1: coding — merge intervals
-
-Implement Python `merge_intervals(intervals)`. Each interval contains two integers, start <= end; malformed intervals raise ValueError. Reject bool as integer. Return sorted merged intervals without mutating inputs. Merge overlap/shared endpoints, not merely adjacent integers.
-
-Examples: `[[5,7],[1,3],[3,4],[9,9]]` becomes `[[1,4],[5,7],[9,9]]`; empty input remains empty; `[[1,2],[3,4]]` remains separate.
-
-Fixed independent harness covers duplicates, nesting, negatives, boundaries, invalid shapes/types and input preservation. Require extractable source in a specified code block/field. Score passed checks/total; full success requires every correctness check and runnable code. Model-authored tests are not the sole oracle. Execute only in verified sandbox.
-
-### D1: document analysis — conflicting dates
-
-Fixture A, dated March 1: Cedar launches April 15 with a $40,000 budget. Fixture B, dated March 10, explicitly supersedes A on schedule only and moves launch to May 2. Neither names an owner.
-
-Ask for launch date, budget, owner and explanation with source IDs/supporting passages. Expected: May 2 [B], $40,000 [A], owner not provided, schedule-only supersession explained. Four binary criteria correspond to those outcomes; human verifies citation support. Inventing an owner is a critical factual failure.
-
-### W1: writing — audience and factual preservation
-
-Source: Cedar is an internal document-search pilot for 12 analysts, begins May 2, has a $40,000 budget and requires human citation checking. No production rollout date or guaranteed accuracy is provided.
-
-Request a calm, clear, 100–140 word announcement for nontechnical staff, with a title and exactly three bullets. Word count excludes title and uses a frozen whitespace-based rule. Score factual preservation, structure/length, audience/clarity and tone, each 0–2. Publish dimensions and evidence, not just a total. Unsupported guarantees or rollout dates are critical failures. Blind human review.
-
-### E1: extraction — superseded invoice amount
-
-Input: “Invoice INV-1042; vendor Northwind Lab; issued 2026-03-10; total USD 1,250.00. Footer: old draft total USD 1,200.00; superseded. Payment due date: not supplied.”
-
-Require JSON object fields `invoice_id`, `vendor`, `issued_date`, `currency`, `total`, `due_date`, with no extras. Expected total is numeric 1250, due_date null, date ISO YYYY-MM-DD. Freeze JSON Schema. Report parsing/schema success and field accuracy separately. Invented due date is critical; preserve invalid raw output.
-
-### A1: simulated agent — recover, read and draft
-
-Task: “Find Cedar's current launch date and budget, then draft a status note. Do not send or save it.”
-
-Tools: `search_documents(query:string)` and `read_document(id:string)`. First search returns a transient error; next valid search returns A/B from D1; reads return their texts. Errors consume tool budget. No send/write tool exists.
-
-Expected: recover, read A/B, return supported May 2/$40,000 draft, do not claim a write/send. Four calls suffice: failed search, successful search, read A, read B. Score valid arguments, recovery, supported answer and no-write compliance separately. Fabricated tool results or claims of sending/saving are critical. Verify installed model tool-call compatibility before admitting this case.
-
-### Pilot accounting and review
-
-Five cases × two conditions × three seeds = 30 top-level trials. Four single-response cases require 24 measured requests; six agent trials can require up to 24 additional requests: **48 measured requests maximum**, plus explicitly budgeted warmups/probes. Every retry is another accounted attempt.
-
-Smoke requests establish duration estimates, not automatic budget approval. Review the full estimate and limits before the pilot. Blinded human review records reviewer, rubric version and annotations; unreviewed is not zero. Approval to run is distinct from approval to publish.
-
-## 8. Full suite and experiment method
-
-Expand to roughly five tuning cases per workload: implementation/repair/regression/boundaries; supported/missing/conflicting document evidence; audience/tone/factual writing; missing/messy/conflicting extraction; tool selection/arguments/recovery/prerequisite handling. Author independently held-out cases excluded from tuning and judge examples.
-
-Screen individual settings first, then justified interactions: batch/microbatch; concurrency/unified KV/per-slot capacity; Flash Attention/KV types; context/cache types; offload/memory pressure; speculative method/draft. Avoid exhaustive grids.
-
-Warm model does not establish prefix-cache isolation. Prefer verified API cache reset. Otherwise mark cache state unknown and qualify timing conclusions. Separate cold-load, warm-model and cached-prefix studies. Randomize paired order to reduce time/thermal drift.
-
-Predeclare practical improvement thresholds, critical regressions and promotion criteria before selecting winners from the full suite. Confirm on held-out cases. Separate hypotheses about quality, preserved quality with efficiency gains, and increased capacity. Three pilot repetitions support exploratory observations, not broad significance claims.
-
-## 9. Measurement and evaluation
-
-- Distinguish first stream event, first generated token, first reasoning token and first answer token where observable. Client TTFT and backend TTFT have separate provenance.
-- Record total request and agent-task time, including retries/tools, plus components where available.
-- Use attributable per-request backend timings. Never assign last-request `/v1/stats` to concurrent trials.
-- Preserve prompt/output/reasoning/cached counts only as reported; identify overlapping fields to avoid double counting.
-- Poll API host metrics at recorded cadence. Mark shared-host scope and unavailable values; shared GPU memory is not independent additional system RAM.
-- Keep judging/rendering outside measured inference. Flag interference without claiming exclusivity.
-- Distinguish task failure, infrastructure failure, timeout, cancellation, unsupported configuration, interference and missing judgment. Retain failed attempts when retrying.
-- Use executable oracles where appropriate and human rubrics where needed. Optional judges record model/build, prompt, rubric and settings. Publish critical failures independently of aggregates.
-
-## 10. Evidence lifecycle and results contract
-
-Freeze experiment specifications. Append trial/attempt events; finalize immutable segment manifests referencing content-addressed artifacts. Rescoring creates new evaluations over unchanged evidence; rerunning creates new trials. Publication creates a separate immutable snapshot rather than a mutable pointer into private results.
-
-```text
-experiment: id, version, hypothesis, creator, approvals, suite_version,
-            configurations, window, budget, execution_order
-configuration: model/checkpoint identity or unknown, quantization,
-               recipe, backend_build, requested/effective settings,
-               evidence_refs, capability_status
-segment: id, environment, timestamps, cache_condition, prior_state,
-         restoration_attempts/outcome
-trial: id, segment, case/version, pair_id, condition, seed, attempt,
-       request, response, tool_trace, timings, token_counts, outcome
-accounting: reservations, usage, cancellation, unknown_usage, overrun
-evaluation: trial, checks, rubric/evaluator version, dimension_scores,
-            critical_failures, judge/reviewer provenance, annotations
-artifact: hash, media_type, size, relative_path, provenance, sensitivity
-publication: snapshot_id, selected_refs, owner_approval, timestamp
-```
-
-Review the exact prompts/responses/logs/artifacts before publication. Redacted derivatives preserve provenance without altering originals. Escape output, sandbox previews and restrict content policies. Export JSON/JSONL evidence, CSV summaries and presentation-ready HTML.
-
-Manual deletion is an explicit owner operation with dependent-evaluation/publication checks. Intentionally withdraw affected public artifacts and retain only a non-sensitive deletion audit. Immutability does not override approved deletion. Backup retention/restore policy is decided before enabling optional network backups.
-
-## 11. Exposition requirements
-
-Provide workload-specific rankings, baseline/configuration diffs, quality–latency and quality–memory comparisons, paired outputs, failure rates, sample counts, cautious uncertainty and inspectable evidence. Render unavailable values as unavailable, never zero.
-
-Filters distinguish suite/rubric/backend/harness versions, cache condition and host conditions. Preserve single-response versus agent-workflow separation. Screenshots and browser verification are valuable additions for web coding, not a substitute for functional checks. Keep generated previews outside trusted application origin.
-
-## 12. Build phases and acceptance gates
-
-### Phase 0 — inventory and isolation proof
-
-Prerequisite: subsequent implementation authorization. Inventory installed API, network route, identities and telemetry. Prove nested sandbox isolation using known fixtures: filesystem/socket access, cross-task contamination, network restrictions including DNS/IPv6, CPU/memory/process/disk ceilings, timeout and orphan cleanup. Proposed LXC starting resources for review: 4 vCPU, 8 GiB RAM and 32 GiB disk; measure before finalizing, leaving coordinator headroom.
-
-**Acceptance:** versioned inventory with explicit limits and successful isolation evidence. Isolation failure stops implementation until resolved. Missing optional telemetry alone does not fail this gate.
-
-### Phase 1 — owner approval and controller
-
-Implement minimal owner authentication, persistent windows/queue, lock, transactional budget reservations, cancellation and reconciliation before real inference.
-
-**Acceptance:** fake-backend checks prove no new dispatch after exhaustion, cancellation propagation, persistent consumed budgets, safe concurrent admission and grace subordinate to budget. Ordinary callers cannot approve protected actions.
-
-### Phase 2 — runner and immutable evidence
-
-Implement API adapter, capability evidence, configuration application/verification, prior-state restoration, append-only attempts, immutable final manifests and resume.
-
-**Acceptance:** accepted-but-unverified settings stay distinct; failed attempts survive retries; resume does not duplicate completed trials or reset budgets. Restoration failure warns/continues and the next experiment independently establishes its required configuration.
-
-**Status 2026-11-07:** implemented and tested against a fake Lemonade (see devlog). Real inference through the runner has not been exercised; that belongs to an owner-approved window (Phase 5).
-
-### Phase 3 — pilot fixtures and evaluators
-
-Implement C1/D1/W1/E1/A1, independent oracles, simulated tools, human review and trace capture.
-
-**Acceptance:** reference outputs pass; intentional wrong outputs fail; task/infrastructure/timeout/missing-review classes stay distinct. Owner reviews actual pilot fixtures, sampling values and resource/request/tool/time limits before execution.
-
-**Status 2026-11-07:** implemented and tested (fixtures, oracles, sandbox, agent loop with simulated tools, blind review, pilot builder). The owner-review gate is open: see `PILOT_REVIEW.md`. A1 was admitted on 2026-11-07 after the tool-call compatibility check.
-
-### Phase 4 — testing UI and MCP
-
-Expose inventory, experiments, flexible supported settings, windows/budgets, progress, cancellation and evidence. Both paths use one controller. External judging remains disabled absent per-experiment approval.
-
-**Acceptance:** equivalent UI/MCP operations enforce identical policies. Custom arguments cannot bypass reserved controls, accounting or credential boundaries. Preserve agreed broad configuration permissions.
-
-**Status 2026-11-07:** implemented and deployed in simulated mode (see devlog): runner wired into the service (sim and real backends), experiment detail and results, pilot launcher, blind review, MCP over HTTP with bearer token. The service runs with `JUICR_BACKEND=sim`; real inference stays off until the owner switches it and opens a window.
-
-### Phase 5 — measured pilot
-
-Use approved window/budget for accounted smoke measurements, then the paired pilot. Record effective limits, cache condition, request totals, review results and restoration.
-
-**Acceptance:** 30 terminal trial records or explicit partial/cancelled status, attributable evidence, subjective review status and demonstrated checkpoint resume. Do not label partial runs complete or inference approval as publication approval.
-
-**Status 2026-11-07:** run 1 executed (see devlog and `evidence/pilot1-run1-results-20261107.txt`): 30 terminal trial records, 40 requests, no observed interference, restoration verified. Acceptance for "attributable evidence" and restoration is met; the pilot is exploratory and confounded by two approved limits (1,024-token cap that includes hidden reasoning; 4-request agent cap), so a pilot-2 with revised limits needs owner approval. Human review of D1/W1 is pending; results are private and nothing is published.
-
-**Pilot-2 (2026-11-07, 20:42-20:57 UTC):** 18 terminal trials (all done), 29 requests, no truncation, no observed interference, restoration verified. Combined with run 1 the pilot now covers all five cases; see `evidence/pilot2-run-results-20261107.txt` and the devlog. Still unreviewed by a human: D1 and W1 judged dimensions. Nothing is published.
-
-### Phase 6 — publication and reports
-
-Materialize owner-approved snapshots atomically; implement read-only comparisons, evidence pages and exports.
-
-**Acceptance:** no report credentials/private-file access/control path; unpublished evidence inaccessible; malicious content cannot run in trusted origin. Standalone export remains interpretable without controller access.
-
-### Phase 7 — full suite and targeted expansion
-
-Agree practical thresholds and held-out cases, review execution/reviewer costs and approve a new budget before the roughly 25-case comparison. Confirm promising profiles on held-out cases.
-
-**Acceptance:** comparable versions/denominators, visible critical failures, manageable cost and evidence-backed recommendations before expanding models/settings.
-
-## 13. Deferred work and remaining review
-
-Defer real agent tools, browser build/repair loops, rich galleries, multiple automated judges, cloud baselines, scheduled windows, host collectors, automatic promotion and overall composite rankings. Advance only when isolation, evidence quality and operating cost justify it.
-
-Frameworks/runtime, grace and restoration retries are now decided (section 3, items 14-15). Before execution, still settle verified API paths and auth, model identity, cache controls, concrete sampling values and final resource/budget limits. Continuation after restoration failure is already decided. Establish full-suite thresholds before promotion.
-
-Ask consequential unresolved questions one at a time with multiple-choice answers and a marked recommendation. Research technical facts through authorized inspection instead of asking the user to guess them.
-
-## 14. References
-
-- Supplied planning proposal and subsequent user decisions in this chat: primary sources for agreed policies.
-- [Lemonade](https://github.com/lemonade-sdk/lemonade)
-- [Lemonade-specific API](https://github.com/lemonade-sdk/lemonade/blob/main/docs/api/lemonade.md)
-- [Chat API](https://github.com/lemonade-sdk/lemonade/blob/main/docs/api/openai.md)
-- [Configuration](https://github.com/lemonade-sdk/lemonade/blob/main/docs/guide/configuration/README.md)
-- [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
-- [WOAI reference](https://www.woaibench.ai/docs)
-
-Upstream references are research starting points, not proof of installed capabilities. Verify licenses and integration availability before reusing external code/prompts. No host probes, deployment or inference were performed to create this plan.
+Provider documentation is not proof of installed Lemonade behavior. Different model hosts may vary in weights, quantization, templates, reasoning and defaults. OpenRouter requires parameter support and disables fallback; optional provider pinning improves attribution. No live provider compatibility is claimed by simulated tests. Input tokens also incur usage and are outside the displayed output allowance. Current requests are non-streaming, so elapsed time is total request duration rather than time to first token.
